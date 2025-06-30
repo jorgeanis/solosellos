@@ -268,6 +268,7 @@ function toggleCategorias() {
   panel.classList.toggle("open");
 }
 </script>
+<script src="../assets/js/preview.js"></script>
 
 
 
