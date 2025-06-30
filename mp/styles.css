@@ -1,0 +1,77 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', sans-serif;
+}
+body {
+    background: #f2f3f5;
+}
+header {
+    background: #03a9f4;
+    padding: 10px 20px;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.logo {
+    font-weight: bold;
+}
+.topbar .btn {
+    background: white;
+    color: #03a9f4;
+    border: none;
+    padding: 6px 12px;
+    margin-left: 10px;
+    border-radius: 5px;
+}
+.container {
+    display: flex;
+}
+.sidebar {
+    width: 220px;
+    background: white;
+    padding: 20px;
+    border-right: 1px solid #ddd;
+    height: calc(100vh - 60px);
+    overflow-y: auto;
+}
+.sidebar ul {
+    list-style: none;
+}
+.sidebar ul li {
+    margin-bottom: 15px;
+    font-size: 14px;
+    color: #333;
+}
+main {
+    flex: 1;
+    padding: 20px;
+}
+.balance, .activity {
+    background: white;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 10px;
+}
+.amount {
+    font-size: 24px;
+    margin: 10px 0;
+}
+.buttons button {
+    margin-right: 10px;
+    padding: 8px 16px;
+    border: none;
+    background: #03a9f4;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.activity ul {
+    margin-top: 10px;
+}
+.activity ul li {
+    padding: 6px 0;
+    border-bottom: 1px solid #eee;
+}

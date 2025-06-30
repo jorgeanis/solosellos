@@ -1,0 +1,120 @@
+
+:root {
+  --primary: #009ee3;
+  --accent: #27e3b5;
+  --bg: #f4f9fd;
+  --dark: #333;
+  --radius: 10px;
+}
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--dark);
+}
+.navbar {
+  background: white;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  padding: 15px 0;
+}
+.container {
+  max-width: 1100px;
+  margin: auto;
+  padding: 0 20px;
+}
+.logo {
+  font-weight: bold;
+  font-size: 1.3rem;
+  color: var(--primary);
+  text-decoration: none;
+}
+nav {
+  float: right;
+}
+nav a {
+  margin-left: 20px;
+  text-decoration: none;
+  color: var(--dark);
+  font-weight: 500;
+}
+nav a:hover {
+  color: var(--primary);
+}
+.hero-section {
+  background: linear-gradient(135deg, #009ee3, #06c0d7);
+  color: white;
+  text-align: center;
+  padding: 100px 20px;
+}
+.hero-section .btn {
+  margin-top: 20px;
+  background: var(--accent);
+  padding: 12px 24px;
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  text-decoration: none;
+}
+.section {
+  padding: 60px 20px;
+}
+h2 {
+  margin-bottom: 20px;
+  font-size: 2rem;
+}
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: var(--radius);
+  box-shadow: 0 5px 12px rgba(0,0,0,0.08);
+  text-align: center;
+}
+.grid-3 {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.grid-3 .card {
+  flex: 1 1 calc(33% - 20px);
+}
+details {
+  margin-bottom: 10px;
+  background: #fff;
+  padding: 15px;
+  border-radius: var(--radius);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+.video-card iframe {
+  width: 100%;
+  max-width: 600px;
+  height: 315px;
+  border-radius: var(--radius);
+  border: none;
+}
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.contact-form input,
+.contact-form textarea {
+  padding: 12px;
+  border-radius: var(--radius);
+  border: 1px solid #ccc;
+}
+.contact-form button {
+  background: var(--primary);
+  color: white;
+  padding: 12px;
+  border: none;
+  border-radius: var(--radius);
+}
+.footer {
+  text-align: center;
+  padding: 30px;
+  background: #f0f0f0;
+}

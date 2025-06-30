@@ -1,0 +1,117 @@
+
+:root {
+  --color-principal: #3f51b5;
+}
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: #f8f8f8;
+  color: #333;
+}
+
+.contenedor {
+  padding: 20px;
+  max-width: 500px;
+  margin: auto;
+}
+
+.logo img {
+  max-width: 180px;
+  display: block;
+  margin: 0 auto 20px;
+}
+
+h2 {
+  font-size: 22px;
+  color: var(--color-principal);
+  margin-bottom: 20px;
+}
+
+h3 {
+  font-size: 18px;
+  color: #555;
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+
+form input, form select, form textarea, form button {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  box-sizing: border-box;
+}
+
+form button {
+  background-color: var(--color-principal);
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+form button:hover {
+  background-color: #2c3e9e;
+}
+
+.modelos, .plantillas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.card-modelo, .card-plantilla {
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  overflow: hidden;
+  width: 48%;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.card-modelo:hover, .card-plantilla:hover {
+  border-color: var(--color-principal);
+}
+
+.card-modelo input, .card-plantilla input {
+  display: none;
+}
+
+.card-modelo .contenido,
+.card-plantilla .preview {
+  padding: 10px;
+  text-align: center;
+  background: white;
+}
+
+.card-modelo img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: auto;
+}
+
+.card-plantilla .linea {
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  margin: 4px 0;
+  background: #eee;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.botones {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+@media screen and (max-width: 480px) {
+  .card-modelo, .card-plantilla {
+    width: 100%;
+  }
+}
