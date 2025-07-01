@@ -278,7 +278,7 @@ $models = $stmt->fetchAll();
       <label class="modelo-card" style="display:block; border-radius: 8px; padding:10px; width: 200px;  background: #fff; margin-bottom: 10px;" style="zoom: 0.5; transform-origin: top left; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 48%; margin: 1%; float: left; background: #fff; border-radius: 8px; padding: 10px;">
         <input type="radio" name="template_id" value="<?= $plantilla['id'] ?>" required style="display:none;">
         <div>
-          <div class="preview" style="width: 340px; height: 180px; zoom: 0.5; transform-origin: top left; display: flex; flex-direction: column; justify-content: center; align-items: center; background: white; border: 1px dashed #ccc; margin: 0 auto; width: 380px; overflow: hidden; padding-top: 10px; padding-bottom: 10px;">
+          <div class="preview" style="width: 340px; height: 180px; zoom: 0.5; transform-origin: top left; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; background: white; border: 1px dashed #ccc; margin: 0 auto; width: 380px; overflow: hidden; padding-top: 10px; padding-bottom: 10px;">
             <?php for ($i = 1; $i <= 4; $i++):
               $texto = $contenido["linea$i"] ?? "";
               $fuente = $plantilla["fuente_linea_$i"] ?? 'Arial';

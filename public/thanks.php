@@ -202,6 +202,7 @@ header {
             white-space: nowrap;
             width: 100%;
             margin-bottom: 5px;
+            line-height: 1;
         }
         .modelo img {
             width: 100%;

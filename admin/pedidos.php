@@ -74,7 +74,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['pedido_id'], $_POST['
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     overflow: hidden;
     text-align: center;
     line-height: 1;
@@ -88,7 +88,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['pedido_id'], $_POST['
     width: 190px;
     height: 70px;
     overflow: hidden;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
     overflow: hidden;
 }
@@ -220,7 +220,7 @@ function cerrarSidebar() {
             <td>
                 <div class="preview-wrapper" style="position:relative;">
                 <div style="width: 380px; aspect-ratio: 1.875;">
-                <div style="justify-content: center; align-items: center; transform: scale(0.5); transform-origin: top left; width: 380px; height: 140px; background: black; position: relative; padding-top: 5px;">
+                <div style="justify-content: flex-start; align-items: center; transform: scale(0.5); transform-origin: top left; width: 380px; height: 140px; background: black; position: relative; padding-top: 5px;">
                     <?php
                     $styles = json_decode($order['styles'], true);
                     for ($i = 1; $i <= 4; $i++) {
@@ -244,7 +244,7 @@ function cerrarSidebar() {
                 </div>
                 </div>
 
-                <div class="preview" id="preview-<?= $order['id'] ?>" style="width: 380px; height: 140px; background: black; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+                <div class="preview" id="preview-<?= $order['id'] ?>" style="width: 380px; height: 140px; background: black; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; text-align: center;">
                     <?php for ($i = 1; $i <= 4; $i++): ?>
                         <?php
                             $text = htmlspecialchars($order["text_line$i"]);
