@@ -1,40 +1,3 @@
-<?php if ($estado_cuenta === 0): ?>
-<style>
-    body {
-        overflow: hidden;
-    }
-    .blur-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        backdrop-filter: blur(4px);
-        background-color: rgba(0, 0, 0, 0.3);
-        z-index: 9998;
-    }
-    .modal-block {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: white;
-        padding: 30px;
-        border-radius: 10px;
-        box-shadow: 0 0 20px rgba(0,0,0,0.25);
-        z-index: 9999;
-        max-width: 90%;
-        width: 400px;
-        text-align: center;
-        font-family: 'Poppins', sans-serif;
-    }
-    .modal-block h2 {
-        margin-top: 0;
-        color: #e74c3c;
-    }
-</style>
-<?php endif; ?>
-
 <?php
 require_once 'includes/auth.php';
 
@@ -51,8 +14,11 @@ $plan_cuenta = $datos_cuenta['plan'] ?? 'No especificado';
 $desde_cuenta = $datos_cuenta['desde'] ?? '—';
 $hasta_cuenta = $datos_cuenta['hasta'] ?? '—';
 ?>
-<?php if (intval($estado_cuenta) === 0): ?>
+<?php if ($estado_cuenta === 0): ?>
 <style>
+    body {
+        overflow: hidden;
+    }
     .blur-overlay {
         position: fixed;
         top: 0;
@@ -89,23 +55,8 @@ $hasta_cuenta = $datos_cuenta['hasta'] ?? '—';
     <p>La cuenta se encuentra suspendida, por favor contactarse con Administración de <strong>SoloSellos.com</strong></p>
 </div>
 <?php endif; ?>
-<?php
-require_once 'includes/auth.php';
 
-if (!isset($pdo)) {
-    require_once 'includes/db.php';
-}
-
-// Verificar estado actual desde la base de datos
-$stmt = $pdo->prepare("SELECT plan, desde, hasta, active FROM users WHERE id = ?");
-$stmt->execute([$_SESSION['user']['id']]);
-$datos_cuenta = $stmt->fetch(PDO::FETCH_ASSOC);
-$estado_cuenta = $datos_cuenta['active'];
-$plan_cuenta = $datos_cuenta['plan'] ?? 'No especificado';
-$desde_cuenta = $datos_cuenta['desde'] ?? '—';
-$hasta_cuenta = $datos_cuenta['hasta'] ?? '—';
-
-require_once 'includes/header.php';
+<?php require_once 'includes/header.php';
 
 // ID del usuario logueado
 $user_id = $_SESSION['user']['id'];
