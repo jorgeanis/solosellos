@@ -303,7 +303,7 @@ header {
                         $size = $order["tamano_linea_$i"];
                         $bold = $order["bold_linea_$i"] ? "bold" : "normal";
                         $align = $order["alineacion_linea_$i"];
-                        $margen = (int)($order["margen_top_linea_$i"]);
+                        $margen = (int)($order["margen_top_linea_$i"]* 1.7);
                     ?>
                     <div class="linea-prev" style="
                         font-family: '<?= $font ?>', sans-serif;
