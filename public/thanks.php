@@ -197,7 +197,9 @@ header {
 .preview {
     transform: scale(0.8);
     transform-origin: top center;
-    line-height: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
 }
         .linea-prev {
             white-space: nowrap;
