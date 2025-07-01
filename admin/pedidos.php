@@ -68,7 +68,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['pedido_id'], $_POST['
     transform: scale(0.5);
     transform-origin: top left;
     width: 420px;
-    height: 160px;
+    height: 180px;
     background: black;
     border: 1px dashed #aaa;
     display: flex;
@@ -81,11 +81,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['pedido_id'], $_POST['
 }
 .linea-prev {
     width: 100%;
+    margin-bottom: 5px;
 }
 
 .preview-wrapper {
     width: 190px;
-    height: 70px;
+    height: 80px;
     overflow: hidden;
     justify-content: center;
     align-items: center;
@@ -219,7 +220,7 @@ function cerrarSidebar() {
             <td>
                 <div class="preview-wrapper" style="position:relative;">
                 <div style="width: 380px; aspect-ratio: 1.875;">
-                <div style="justify-content: center; align-items: center; transform: scale(0.5); transform-origin: top left; width: 380px; height: 140px; background: black; position: relative; padding-top: 5px;">
+                <div style="justify-content: center; align-items: center; transform: scale(0.5); transform-origin: top left; width: 380px; height: 160px; background: black; position: relative; padding-top: 5px;">
                     <?php
                     $styles = json_decode($order['styles'], true);
                     for ($i = 1; $i <= 4; $i++) {
@@ -234,6 +235,7 @@ function cerrarSidebar() {
                         echo 'font-weight:' . $bold . ';';
                         echo 'color:white;';
                         echo 'margin-top:' . $top . 'px;';
+                        echo 'margin-bottom:5px;';
                         echo 'text-align:center;';
                         echo 'width:100%;';
                         echo '">' . $line . '</div>';
@@ -242,7 +244,7 @@ function cerrarSidebar() {
                 </div>
                 </div>
 
-                <div class="preview" id="preview-<?= $order['id'] ?>" style="width: 380px; height: 140px; background: black; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+                <div class="preview" id="preview-<?= $order['id'] ?>" style="width: 380px; height: 160px; background: black; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
                     <?php for ($i = 1; $i <= 4; $i++): ?>
                         <?php
                             $text = htmlspecialchars($order["text_line$i"]);
@@ -257,11 +259,11 @@ function cerrarSidebar() {
                         ?>
                         <div class="linea-prev" style="
                             margin-top: <?= $margin_top ?>px;
+                            margin-bottom: 5px;
                             font-family: '<?= $font ?>', sans-serif;
                             font-size: <?= $size ?>px;
                             font-weight: <?= $bold ?>;
                             text-align: <?= $align ?>;
-                            line-height: <?= $size * 1.1 ?>px;
                             width: 380px;
                             color: white;
                         "><?= $text ?></div>
