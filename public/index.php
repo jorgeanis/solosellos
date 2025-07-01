@@ -1,5 +1,4 @@
 <?php
-require_once '../config.php';
 require_once '../admin/includes/db.php';
 
 if (!isset($_GET['u'])) {
