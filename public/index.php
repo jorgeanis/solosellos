@@ -278,7 +278,7 @@ $models = $stmt->fetchAll();
       <label class="modelo-card" style="display:block; border-radius: 8px; padding:10px; width: 200px;  background: #fff; margin-bottom: 10px;" style="zoom: 0.5; transform-origin: top left; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 48%; margin: 1%; float: left; background: #fff; border-radius: 8px; padding: 10px;">
         <input type="radio" name="template_id" value="<?= $plantilla['id'] ?>" required style="display:none;">
         <div>
-          <div class="preview" style="width: 340px; height: 180px; zoom: 0.5; transform-origin: top left; display: flex; flex-direction: column; justify-content: space-around; align-items: center; background: white; border: 1px dashed #ccc; margin: 0 auto;  width: 380px; height: auto; background-color: #fff; padding-top: 0; overflow: hidden; zoom: 0.5; transform-origin: top left; display: flex; flex-direction: column; justify-content: center; align-items: center; line-height: 1.1; overflow: hidden; display: flex; flex-direction: column; justify-content: space-evenly; align-items: center; gap: 0.2em; display: flex; flex-direction: column; align-items: center; margin-top: auto; margin-bottom: auto; gap: 0.3em; display: flex; flex-direction: column; align-items: center; margin-top: auto; margin-bottom: auto; gap: 0.3em; padding-top: 10px; padding-bottom: 10px;">
+          <div class="preview" style="width: 340px; height: 180px; zoom: 0.5; transform-origin: top left; display: flex; flex-direction: column; justify-content: center; align-items: center; background: white; border: 1px dashed #ccc; margin: 0 auto; width: 380px; overflow: hidden; padding-top: 10px; padding-bottom: 10px;">
             <?php for ($i = 1; $i <= 4; $i++):
               $texto = $contenido["linea$i"] ?? "";
               $fuente = $plantilla["fuente_linea_$i"] ?? 'Arial';
@@ -293,6 +293,7 @@ $models = $stmt->fetchAll();
                 font-weight: <?= $bold ?>;
                 text-align: <?= $alineacion ?>;
                 margin-top: <?= $margen ?>px;
+                margin-bottom: 5px;
                 white-space: nowrap;
                 color: black;
                 width: 100%;

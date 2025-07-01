@@ -195,6 +195,7 @@ $categorias = $cats->fetchAll();
       font-weight: <?= $bold ?>;
       text-align: <?= $alineacion ?>;
       margin-top: <?= $margen ?>px;
+      margin-bottom: 5px;
       white-space: nowrap;
       color: black;
       width: 100%;

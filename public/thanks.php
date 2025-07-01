@@ -201,6 +201,7 @@ header {
         .linea-prev {
             white-space: nowrap;
             width: 100%;
+            margin-bottom: 5px;
         }
         .modelo img {
             width: 100%;
@@ -307,6 +308,7 @@ header {
                         font-weight: <?= $bold ?>;
                         text-align: <?= $align ?>;
                         margin-top: <?= $margen ?>px;
+                        margin-bottom: 5px;
                     "><?= $text ?></div>
                 <?php endfor; ?>
             </div>

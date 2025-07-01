@@ -81,6 +81,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['pedido_id'], $_POST['
 }
 .linea-prev {
     width: 100%;
+    margin-bottom: 5px;
 }
 
 .preview-wrapper {
@@ -234,6 +235,7 @@ function cerrarSidebar() {
                         echo 'font-weight:' . $bold . ';';
                         echo 'color:white;';
                         echo 'margin-top:' . $top . 'px;';
+                        echo 'margin-bottom:5px;';
                         echo 'text-align:center;';
                         echo 'width:100%;';
                         echo '">' . $line . '</div>';
@@ -257,11 +259,11 @@ function cerrarSidebar() {
                         ?>
                         <div class="linea-prev" style="
                             margin-top: <?= $margin_top ?>px;
+                            margin-bottom: 5px;
                             font-family: '<?= $font ?>', sans-serif;
                             font-size: <?= $size ?>px;
                             font-weight: <?= $bold ?>;
                             text-align: <?= $align ?>;
-                            line-height: <?= $size * 1.1 ?>px;
                             width: 380px;
                             color: white;
                         "><?= $text ?></div>
