@@ -1,15 +1,5 @@
 
 <?php
-$estado = $order['estado'];
-$badgeClass = match($estado) {
-    'Recibido' => 'badge-gray',
-    'Confirmado' => 'badge-blue',
-    'En Producción' => 'badge-yellow',
-    'Cancelado' => 'badge-red',
-    'Entregado' => 'badge-green',
-    default => 'badge-gray'
-};
-
 require_once '../admin/includes/db.php';
 
 $order_code = $_GET['order'] ?? null;
@@ -50,6 +40,16 @@ if (!$order) {
     echo "Pedido no encontrado.";
     exit;
 }
+
+$estado = $order['estado'];
+$badgeClass = match($estado) {
+    'Recibido' => 'badge-gray',
+    'Confirmado' => 'badge-blue',
+    'En Producción' => 'badge-yellow',
+    'Cancelado' => 'badge-red',
+    'Entregado' => 'badge-green',
+    default => 'badge-gray'
+};
 
 $color = $order['color'] ?? '#009688';
 
