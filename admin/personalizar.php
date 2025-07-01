@@ -1,20 +1,4 @@
 <?php
-session_start();
-if (!isset($user) && isset($_SESSION['user'])) {
-    $user = $_SESSION['user'];
-}
-if (!isset($_SESSION['user_id']) && isset($user['id'])) {
-    $_SESSION['user_id'] = $user['id'];
-}
-?>
-<?php<?php
-session_start();
-if (!isset($_SESSION['user_id']) && isset($user['id'])) {
-    $_SESSION['user_id'] = $user['id'];
-}
-?>
- session_start(); $_SESSION['user_id'] = $user['id']; ?>
-<?php
 require_once 'includes/auth.php';
 require_once 'includes/header.php';
 
