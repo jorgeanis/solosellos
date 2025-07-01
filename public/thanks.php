@@ -197,6 +197,7 @@ header {
 .preview {
     transform: scale(0.8);
     transform-origin: top center;
+    line-height: 1;
 }
         .linea-prev {
             white-space: nowrap;
