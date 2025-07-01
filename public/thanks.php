@@ -194,7 +194,19 @@ header {
   margin-bottom: 25px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.06);
 }
-        .preview {
+.preview {
+            width: 380px;
+            height: 150px;
+            background: white;
+            border: 1px dashed #ccc;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            padding-top: 10px;
+            padding-bottom: 10px;
+            margin: 0 auto;
+            overflow: hidden;
             transform: scale(0.8);
             transform-origin: top center;
         }
@@ -202,7 +214,6 @@ header {
             white-space: nowrap;
             width: 100%;
             margin-bottom: 5px;
-            line-height: 1;
         }
         .modelo img {
             width: 100%;

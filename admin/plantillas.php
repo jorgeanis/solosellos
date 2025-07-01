@@ -179,7 +179,7 @@ $categorias = $cats->fetchAll();
       <?php if ($plantilla['category_id'] == $cat['id']): ?>
       <div class="card">
         
-<div class="preview" style="margin: 0 auto; width: 380px; height: 140px; border: 2px dashed #aaa; background-color: #fff; overflow: hidden; transform: scale(0.6); transform-origin: top left; display: flex; flex-direction: column; justify-content: flex-start; align-items: center;">
+<div class="preview" style="margin: 0 auto; width: 380px; height: 150px; border: 2px dashed #aaa; background-color: #fff; overflow: hidden; transform: scale(0.6); transform-origin: top left; display: flex; flex-direction: column; justify-content: center; align-items: center;">
   <?php $contenido = json_decode($plantilla["content"], true); ?>
   <?php for ($i = 1; $i <= 4; $i++):
     $texto = $contenido["linea$i"] ?? "";
