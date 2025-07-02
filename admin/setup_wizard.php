@@ -55,6 +55,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 <h2>Asistente de Configuración</h2>
+<div id="progressBar">
+  <?php for($i=1;$i<=4;$i++): ?>
+    <div class="prog-step" data-step="<?= $i ?>"></div>
+  <?php endfor; ?>
+</div>
 <form method="POST" enctype="multipart/form-data" id="wizardForm">
 <div id="wizard" style="display:flex;gap:40px;">
   <div class="steps" style="width:40%;max-width:350px;">
@@ -98,7 +103,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <label>Mensaje de bienvenida</label>
         <textarea name="welcome" id="welcome" rows="2"><?= htmlspecialchars($welcome) ?></textarea>
         <label>Footer</label>
-        <textarea name="footer" id="footer" rows="2"><?= htmlspecialchars($footer) ?></textarea>
+        <div id="footerToolbar" class="toolbar">
+            <button type="button" data-cmd="bold"><i class="fa fa-bold"></i></button>
+            <button type="button" data-cmd="justifyLeft"><i class="fa fa-align-left"></i></button>
+            <button type="button" data-cmd="justifyCenter"><i class="fa fa-align-center"></i></button>
+            <button type="button" data-cmd="justifyRight"><i class="fa fa-align-right"></i></button>
+            <button type="button" id="fontPlus">A+</button>
+            <button type="button" id="fontMinus">A-</button>
+        </div>
+        <div id="footerEditor" contenteditable="true" style="border:1px solid #ccc;min-height:60px;padding:6px;"><?= htmlspecialchars($footer) ?></div>
+        <textarea name="footer" id="footer" style="display:none;"><?= htmlspecialchars($footer) ?></textarea>
     </div>
     <div style="margin-top:20px;">
       <button type="button" id="prevBtn" style="display:none;">Anterior</button>
@@ -106,8 +120,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <button type="submit" id="finishBtn" style="display:none;">Guardar</button>
     </div>
   </div>
-  <div style="flex:1;border:1px solid #ccc;border-radius:8px;overflow:hidden;">
-      <iframe id="previewFrame" src="../public/index.php?u=<?= urlencode($_SESSION['user']['link_code']) ?>" style="width:100%;height:600px;border:0;"></iframe>
+  <div class="phone-frame">
+      <iframe id="previewFrame" src="../public/index.php?u=<?= urlencode($_SESSION['user']['link_code']) ?>" scrolling="no"></iframe>
+      <img src="../assets/images/movil.png" class="phone-img" alt="marco movil">
   </div>
 </div>
 </form>
@@ -116,6 +131,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 .step{display:none;}
 .step.active{display:block;animation:fadeIn 0.3s ease;}
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+.phone-frame{position:relative;width:310px;height:610px;max-width:100%;margin:auto;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:40px;}
+.phone-frame iframe{width:100%;height:100%;border:0;overflow:hidden;}
+.phone-img{position:absolute;top:-5%;left:-5%;width:110%;height:110%;z-index:20;pointer-events:none;}
+.phone-frame iframe::-webkit-scrollbar{display:none;}
+.toolbar{display:flex;gap:5px;margin-bottom:5px;}
+.toolbar button{background:#f0f0f0;border:1px solid #ccc;padding:4px 6px;cursor:pointer;}
+#progressBar{display:flex;gap:5px;margin-bottom:20px;}
+.prog-step{flex:1;height:8px;background:#e0e0e0;border-radius:4px;position:relative;}
+.prog-step::after{content:attr(data-step);position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:12px;}
+.prog-step.active,.prog-step.completed{background:#1abc9c;}
 </style>
 
 <script>
@@ -131,6 +156,14 @@ function showStep(i){
   prevBtn.style.display = current===0? 'none':'inline-block';
   nextBtn.style.display = current===steps.length-1? 'none':'inline-block';
   finishBtn.style.display = current===steps.length-1? 'inline-block':'none';
+  document.querySelectorAll('.prog-step').forEach((el,idx)=>{
+    el.classList.toggle('active', idx===i);
+    el.classList.toggle('completed', idx<i);
+  });
+  const pColor = document.getElementById('color_primary').value;
+  document.querySelectorAll('.prog-step.active, .prog-step.completed').forEach(el=>{
+    el.style.backgroundColor = pColor;
+  });
 }
 prevBtn.addEventListener('click',()=>{ if(current>0) showStep(current-1); });
 nextBtn.addEventListener('click',()=>{ if(current<steps.length-1) showStep(current+1); });
@@ -138,7 +171,13 @@ showStep(0);
 
 const iframe = document.getElementById('previewFrame');
 let previewDoc = null;
-iframe.addEventListener('load', () => { previewDoc = iframe.contentWindow.document; updatePreview(); });
+iframe.addEventListener('load', () => {
+  previewDoc = iframe.contentWindow.document;
+  if(previewDoc && previewDoc.body){
+    previewDoc.body.style.overflow = 'hidden';
+  }
+  updatePreview();
+});
 
 function updatePreview(){
   if(!previewDoc) return;
@@ -160,15 +199,33 @@ function updatePreview(){
 
   previewDoc.documentElement.style.setProperty('--color-principal', colorP);
   previewDoc.documentElement.style.setProperty('--color-secundario', colorS);
+  document.querySelectorAll('.prog-step.active, .prog-step.completed').forEach(el=>el.style.backgroundColor=colorP);
   if (bg) previewDoc.body.style.backgroundImage = "url('../assets/images/bg/"+bg+"')";
 
   const welcomeEl = previewDoc.querySelector('.bienvenida div');
   if (welcomeEl) welcomeEl.textContent = welcome;
   const footerEl = previewDoc.querySelector('footer');
-  if (footerEl) footerEl.innerHTML = footer;
+  if (footerEl){
+    footerEl.innerHTML = footer;
+    footerEl.style.backgroundColor = colorS;
+  }
 }
 
 document.querySelectorAll('#bizname,#welcome,#footer,#color_primary,#color_secundary').forEach(el=>el.addEventListener('input',updatePreview));
+document.getElementById('footerEditor').addEventListener('input',()=>{
+  document.getElementById('footer').value = document.getElementById('footerEditor').innerHTML;
+  updatePreview();
+});
+document.querySelectorAll('#footerToolbar button').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const cmd = btn.dataset.cmd;
+    if(cmd){ document.execCommand(cmd,false,null); }
+    if(btn.id==='fontPlus') document.execCommand('fontSize',false,'4');
+    if(btn.id==='fontMinus') document.execCommand('fontSize',false,'2');
+    document.getElementById('footer').value = document.getElementById('footerEditor').innerHTML;
+    updatePreview();
+  });
+});
 document.querySelectorAll("input[name='bg_select']").forEach(el=>el.addEventListener('change',()=>{document.getElementById('background_image').value=el.value;updatePreview();}));
 document.getElementById('logoInput').addEventListener('change',updatePreview);
 </script>

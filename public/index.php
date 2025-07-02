@@ -28,6 +28,7 @@ $models = $stmt->fetchAll();
 <style>
     :root {
       --color-principal: <?= $user['color_primary'] ?>;
+      --color-secundario: <?= $user['color_secundary'] ?>;
       --fuente-principal: '<?= $user['font_family'] ?>', sans-serif;
     }
     body {
@@ -36,7 +37,7 @@ $models = $stmt->fetchAll();
       background: #f5f5f5;
       padding: 20px;
     }
-    .container { max-width: 500px; margin: 0 auto; }
+    .container { max-width: 500px; margin: 0 auto; flex: 1; display: flex; flex-direction: column; }
     .titulo {
               background-color: #e1f5fe;
               padding: 14px 18px;
@@ -103,7 +104,6 @@ $models = $stmt->fetchAll();
       overflow-x: hidden;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
     }
 
     input, select, textarea {
@@ -204,7 +204,7 @@ $models = $stmt->fetchAll();
   </div>
 </header>
 
-<div class="container">
+<main class="container">
 <?php if (!$step): ?>
   <div class="bienvenida" style="text-align: center;">
     <h1>¡Bienvenido!</h1>
@@ -365,7 +365,9 @@ document.addEventListener("DOMContentLoaded", () => {
   <input type="hidden" name="linea4" value="<?= htmlspecialchars($_GET['linea4'] ?? '') ?>">
 </form>
 <?php endif; ?>
-</html>
-<footer style="background-color: #fff; border: 1px solid #ccc; padding: 10px 20px; font-family: Roboto, sans-serif; border-radius: 8px; width: calc(85% - 20px); max-width: 95%; text-align: center; margin: 40px auto 20px auto;">
+</main>
+<footer style="background-color: var(--color-secundario); padding: 6px 10px; font-family: Roboto, sans-serif; font-size: 12px; text-align: center; margin-top: auto; border-radius: 6px; width: calc(85% - 20px); max-width:95%;">
   <?= isset($user['footer']) ? $user['footer'] : '' ?>
 </footer>
+</body>
+</html>
