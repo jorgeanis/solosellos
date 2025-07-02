@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <h2>Asistente de Configuración</h2>
 <div id="progressBar">
   <?php for($i=1;$i<=4;$i++): ?>
-    <div class="prog-step" data-step="<?= $i ?>"><?= $i ?></div>
+    <div class="prog-step" data-step="<?= $i ?>"></div>
   <?php endfor; ?>
 </div>
 <form method="POST" enctype="multipart/form-data" id="wizardForm">
@@ -122,6 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </div>
   <div class="phone-frame">
       <iframe id="previewFrame" src="../public/index.php?u=<?= urlencode($_SESSION['user']['link_code']) ?>" scrolling="no"></iframe>
+      <img src="../assets/images/movil.png" class="phone-img" alt="marco movil">
   </div>
 </div>
 </form>
@@ -130,8 +131,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 .step{display:none;}
 .step.active{display:block;animation:fadeIn 0.3s ease;}
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
-.phone-frame{width:360px;height:640px;max-width:100%;margin:auto;background:url('../assets/images/movil.png') no-repeat center/contain;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:20px;}
+.phone-frame{position:relative;width:360px;height:640px;max-width:100%;margin:auto;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:20px;}
 .phone-frame iframe{width:100%;height:100%;border:0;overflow:hidden;}
+.phone-img{position:absolute;top:0;left:0;width:100%;height:100%;z-index:10;pointer-events:none;}
 .phone-frame iframe::-webkit-scrollbar{display:none;}
 .toolbar{display:flex;gap:5px;margin-bottom:5px;}
 .toolbar button{background:#f0f0f0;border:1px solid #ccc;padding:4px 6px;cursor:pointer;}
