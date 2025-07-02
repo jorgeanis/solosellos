@@ -41,7 +41,6 @@ if (!$order) {
     exit;
 }
 
-$estado = $order['estado'];
 $badgeClass = match($estado) {
     'Recibido' => 'badge-gray',
     'Confirmado' => 'badge-blue',
@@ -194,13 +193,17 @@ header {
   margin-bottom: 25px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.06);
 }
-        .preview {
-            transform: scale(0.8);
-            transform-origin: top center;
-        }
+.preview {
+    transform: scale(0.8);
+    transform-origin: top center;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
         .linea-prev {
             white-space: nowrap;
             width: 100%;
+            margin-bottom: 5px;
         }
         .modelo img {
             width: 100%;
@@ -307,6 +310,7 @@ header {
                         font-weight: <?= $bold ?>;
                         text-align: <?= $align ?>;
                         margin-top: <?= $margen ?>px;
+                        margin-bottom: 5px;
                     "><?= $text ?></div>
                 <?php endfor; ?>
             </div>

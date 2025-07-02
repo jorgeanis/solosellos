@@ -14,7 +14,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     if ($user && hash('sha256', $pass) === $user['password']) {
         $_SESSION['user'] = $user;
-        header("Location: dashboard.php");
+        $needs_setup = empty($user['name']) || empty($user['color_primary']);
+        if ($needs_setup) {
+            header("Location: setup_wizard.php");
+        } else {
+            header("Location: dashboard.php");
+        }
         exit;
     } else {
         $error = "Credenciales inválidas";

@@ -22,7 +22,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $verificar->store_result();
 
     if ($verificar->num_rows > 0) {
-        die("Ya existe un usuario registrado con ese correo.");
+        header('Location: formreg.html?error=exists');
+        exit;
     }
     $verificar->close();
 
