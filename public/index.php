@@ -369,6 +369,7 @@ document.addEventListener("DOMContentLoaded", () => {
   <input type="hidden" name="linea4" value="<?= htmlspecialchars($_GET['linea4'] ?? '') ?>">
 </form>
 <?php endif; ?>
+</div>
 <footer style="background-color: #fff; border: 1px solid #ccc; padding: 10px 20px; font-family: Roboto, sans-serif; border-radius: 8px; width: calc(85% - 20px); max-width: 95%; margin-top: auto; text-align: center;">
   <?= isset($user['footer']) ? $user['footer'] : '' ?>
 </footer>
