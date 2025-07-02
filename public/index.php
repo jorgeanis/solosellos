@@ -103,7 +103,6 @@ $models = $stmt->fetchAll();
       overflow-x: hidden;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
     }
 
     input, select, textarea {
@@ -162,6 +161,11 @@ $models = $stmt->fetchAll();
     height: 18px;
     cursor: pointer;
     accent-color: var(--color-principal);
+}
+
+footer {
+    margin-top: auto;
+    text-align: center;
 }
 
 </style>
@@ -365,7 +369,8 @@ document.addEventListener("DOMContentLoaded", () => {
   <input type="hidden" name="linea4" value="<?= htmlspecialchars($_GET['linea4'] ?? '') ?>">
 </form>
 <?php endif; ?>
-</html>
-<footer style="background-color: #fff; border: 1px solid #ccc; padding: 10px 20px; font-family: Roboto, sans-serif; border-radius: 8px; width: calc(85% - 20px); max-width: 95%; text-align: center; margin: 40px auto 20px auto;">
+<footer style="background-color: #fff; border: 1px solid #ccc; padding: 10px 20px; font-family: Roboto, sans-serif; border-radius: 8px; width: calc(85% - 20px); max-width: 95%; margin-top: auto; text-align: center;">
   <?= isset($user['footer']) ? $user['footer'] : '' ?>
 </footer>
+</body>
+</html>
