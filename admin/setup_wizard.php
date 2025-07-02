@@ -125,10 +125,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 .mobile-frame{position:relative;width:285px;height:549px;}
 .mobile-frame iframe{
     position:absolute;
-    top:35px;
-    left:30px;
+    top:30px;
+    left:25px;
     width:310px;
-    height:645px;
+    height:670px;
     border:0;
     border-radius:0;
     transform:scale(0.75);
