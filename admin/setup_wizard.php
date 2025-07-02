@@ -106,8 +106,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <button type="submit" id="finishBtn" style="display:none;">Guardar</button>
     </div>
   </div>
-  <div style="flex:1;border:1px solid #ccc;border-radius:8px;overflow:hidden;">
-      <iframe id="previewFrame" src="../public/index.php?u=<?= urlencode($_SESSION['user']['link_code']) ?>" style="width:100%;height:600px;border:0;"></iframe>
+  <div class="phone-frame">
+      <iframe id="previewFrame" src="../public/index.php?u=<?= urlencode($_SESSION['user']['link_code']) ?>" scrolling="no"></iframe>
   </div>
 </div>
 </form>
@@ -116,6 +116,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 .step{display:none;}
 .step.active{display:block;animation:fadeIn 0.3s ease;}
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+.phone-frame{width:360px;height:640px;max-width:100%;margin:auto;background:url('../assets/images/movil.png') no-repeat center/contain;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:20px;}
+.phone-frame iframe{width:100%;height:100%;border:0;overflow:hidden;}
+.phone-frame iframe::-webkit-scrollbar{display:none;}
 </style>
 
 <script>
@@ -138,7 +141,13 @@ showStep(0);
 
 const iframe = document.getElementById('previewFrame');
 let previewDoc = null;
-iframe.addEventListener('load', () => { previewDoc = iframe.contentWindow.document; updatePreview(); });
+iframe.addEventListener('load', () => {
+  previewDoc = iframe.contentWindow.document;
+  if(previewDoc && previewDoc.body){
+    previewDoc.body.style.overflow = 'hidden';
+  }
+  updatePreview();
+});
 
 function updatePreview(){
   if(!previewDoc) return;
