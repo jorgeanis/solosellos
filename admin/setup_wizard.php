@@ -110,6 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <div style="flex:1;display:flex;justify-content:center;align-items:center;">
       <div class="mobile-frame">
           <iframe id="previewFrame" src="../public/index.php?u=<?= urlencode($_SESSION['user']['link_code']) ?>"></iframe>
+          <img class="phone-overlay" src="../assets/images/movil.png" alt="phone frame">
       </div>
   </div>
 </div>
@@ -121,17 +122,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
 #progress{height:8px;background:#e0e0e0;border-radius:4px;margin-bottom:20px;overflow:hidden;}
 #progressBar{height:100%;width:0;background:#1abc9c;transition:width .3s ease;}
-.mobile-frame{background:url('../assets/images/movil.png') no-repeat center center;background-size:contain;width:285px;height:549px;position:relative;}
+.mobile-frame{position:relative;width:285px;height:549px;}
 .mobile-frame iframe{
     position:absolute;
-    top:45px;
+    top:35px;
     left:30px;
-    width:300px;
+    width:310px;
     height:645px;
     border:0;
     border-radius:0;
     transform:scale(0.75);
     transform-origin:top left;
+}
+.phone-overlay{
+    position:absolute;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    pointer-events:none;
+    z-index:1;
 }
 </style>
 
