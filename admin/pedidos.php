@@ -390,3 +390,4 @@ async function exportSelectedToPDF() {
     🖨️ Generando PDF, por favor esperá...
   </div>
 </div>
+<script src="../assets/js/preview.js"></script>

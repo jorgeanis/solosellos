@@ -359,6 +359,7 @@ function descargarPNG() {
   });
 }
 </script>
+<script src="../assets/js/preview.js"></script>
 
 </body>
 </html>

@@ -267,10 +267,10 @@ $models = $stmt->fetchAll();
   <input type="hidden" name="step" value="3">
   <input type="hidden" name="model_id" value="<?= htmlspecialchars($model_id) ?>">
 
-  <input type="text" name="linea1" placeholder="Línea 1" oninput="actualizarPreview(event)" required style="margin-bottom: 10px; width:90%; max-width: 650px; padding: 10px; margin: 0 auto auto; display: block;"><br>
-    <div class="input-wrapper"><input type="text" name="linea2" placeholder="Línea 2" oninput="actualizarPreview(event)" style="margin-bottom: 10px; width:90%; max-width: 650px; padding: 10px; margin: 0 auto; display: block;"><input type="checkbox" id="chk_linea2" checked onchange="actualizarPreview()"></div>
-    <div class="input-wrapper"><input type="text" name="linea3" placeholder="Línea 3" oninput="actualizarPreview(event)" style="margin-bottom: 10px; width:90%; max-width: 650px; padding: 10px; margin: 0 auto; display: block;"><input type="checkbox" id="chk_linea3" checked onchange="actualizarPreview()"></div>
-    <div class="input-wrapper"><input type="text" name="linea4" placeholder="Línea 4" oninput="actualizarPreview(event)" style="margin-bottom: 10px; width:90%; max-width: 650px; padding: 10px; margin: 0 auto; display: block;"><input type="checkbox" id="chk_linea4" checked onchange="actualizarPreview()"></div>
+  <input type="text" name="linea1" placeholder="Línea 1" oninput="updatePreview(event)" required style="margin-bottom: 10px; width:90%; max-width: 650px; padding: 10px; margin: 0 auto auto; display: block;"><br>
+    <div class="input-wrapper"><input type="text" name="linea2" placeholder="Línea 2" oninput="updatePreview(event)" style="margin-bottom: 10px; width:90%; max-width: 650px; padding: 10px; margin: 0 auto; display: block;"><input type="checkbox" id="chk_linea2" checked onchange="updatePreview()"></div>
+    <div class="input-wrapper"><input type="text" name="linea3" placeholder="Línea 3" oninput="updatePreview(event)" style="margin-bottom: 10px; width:90%; max-width: 650px; padding: 10px; margin: 0 auto; display: block;"><input type="checkbox" id="chk_linea3" checked onchange="updatePreview()"></div>
+    <div class="input-wrapper"><input type="text" name="linea4" placeholder="Línea 4" oninput="updatePreview(event)" style="margin-bottom: 10px; width:90%; max-width: 650px; padding: 10px; margin: 0 auto; display: block;"><input type="checkbox" id="chk_linea4" checked onchange="updatePreview()"></div>
 
   <div class="modelo-lista">
     <?php foreach ($plantillas as $plantilla): ?>
@@ -314,124 +314,6 @@ $models = $stmt->fetchAll();
 
 
 
-<script>
-function seleccionarPlantilla(el) {
-  document.querySelectorAll('.modelo-card').forEach(card => card.classList.remove('active'));
-  el.classList.add('active');
-  const radio = el.querySelector('input[type=radio]');
-  if (radio) radio.checked = true;
-}
-
-
-function actualizarPreview(e) {
-  const target = e?.target?.name || null;
-  const l1 = document.querySelector("input[name='linea1']").value;
-  const l2 = document.querySelector("input[name='linea2']").value;
-  const l3 = document.querySelector("input[name='linea3']").value;
-  const l4 = document.querySelector("input[name='linea4']").value;
-
-  const chk2 = document.getElementById("chk_linea2")?.checked ?? true;
-  const chk3 = document.getElementById("chk_linea3")?.checked ?? true;
-  const chk4 = document.getElementById("chk_linea4")?.checked ?? true;
-
-  document.querySelectorAll('.modelo-card').forEach(card => {
-    const lines = card.querySelectorAll('.linea-prev');
-    if (!target || target === 'linea1') { if (lines[0]) { lines[0].textContent = l1; lines[0].style.display = 'block'; } }
-    if (!target || target === 'linea2') { if (lines[1]) { lines[1].textContent = l2; lines[1].style.display = chk2 ? 'block' : 'none'; } }
-    if (!target || target === 'linea3') { if (lines[2]) { lines[2].textContent = l3; lines[2].style.display = chk3 ? 'block' : 'none'; } }
-    if (!target || target === 'linea4') { if (lines[3]) { lines[3].textContent = l4; lines[3].style.display = chk4 ? 'block' : 'none'; } }
-  });
-}
-
-document.addEventListener('DOMContentLoaded', function () {
-  document.querySelectorAll('.modelo-card').forEach(card => {
-    card.addEventListener('click', function() {
-      seleccionarPlantilla(card);
-    });
-  });
-});
-</script>
-
-
-
-<script>
-function seleccionarPlantilla(el) {
-  document.querySelectorAll('.modelo-card').forEach(card => card.classList.remove('active'));
-  el.classList.add('active');
-  const radio = el.querySelector('input[type=radio]');
-  if (radio) radio.checked = true;
-}
-
-
-function actualizarPreview(e) {
-  const target = e?.target?.name || null;
-  const l1 = document.querySelector("input[name='linea1']").value;
-  const l2 = document.querySelector("input[name='linea2']").value;
-  const l3 = document.querySelector("input[name='linea3']").value;
-  const l4 = document.querySelector("input[name='linea4']").value;
-
-  const chk2 = document.getElementById("chk_linea2")?.checked ?? true;
-  const chk3 = document.getElementById("chk_linea3")?.checked ?? true;
-  const chk4 = document.getElementById("chk_linea4")?.checked ?? true;
-
-  document.querySelectorAll('.modelo-card').forEach(card => {
-    const lines = card.querySelectorAll('.linea-prev');
-    if (!target || target === 'linea1') { if (lines[0]) { lines[0].textContent = l1; lines[0].style.display = 'block'; } }
-    if (!target || target === 'linea2') { if (lines[1]) { lines[1].textContent = l2; lines[1].style.display = chk2 ? 'block' : 'none'; } }
-    if (!target || target === 'linea3') { if (lines[2]) { lines[2].textContent = l3; lines[2].style.display = chk3 ? 'block' : 'none'; } }
-    if (!target || target === 'linea4') { if (lines[3]) { lines[3].textContent = l4; lines[3].style.display = chk4 ? 'block' : 'none'; } }
-  });
-}
-
-document.addEventListener('DOMContentLoaded', function () {
-  document.querySelectorAll('.modelo-card').forEach(card => {
-    card.addEventListener('click', function() {
-      seleccionarPlantilla(card);
-    });
-  });
-});
-</script>
-
-
-
-
-<script>
-function seleccionarPlantilla(el) {
-  document.querySelectorAll('.modelo-card').forEach(card => card.classList.remove('active'));
-  el.classList.add('active');
-  const radio = el.querySelector('input[type=radio]');
-  if (radio) radio.checked = true;
-}
-
-
-function actualizarPreview(e) {
-  const target = e?.target?.name || null;
-  const l1 = document.querySelector("input[name='linea1']").value;
-  const l2 = document.querySelector("input[name='linea2']").value;
-  const l3 = document.querySelector("input[name='linea3']").value;
-  const l4 = document.querySelector("input[name='linea4']").value;
-
-  const chk2 = document.getElementById("chk_linea2")?.checked ?? true;
-  const chk3 = document.getElementById("chk_linea3")?.checked ?? true;
-  const chk4 = document.getElementById("chk_linea4")?.checked ?? true;
-
-  document.querySelectorAll('.modelo-card').forEach(card => {
-    const lines = card.querySelectorAll('.linea-prev');
-    if (!target || target === 'linea1') { if (lines[0]) { lines[0].textContent = l1; lines[0].style.display = 'block'; } }
-    if (!target || target === 'linea2') { if (lines[1]) { lines[1].textContent = l2; lines[1].style.display = chk2 ? 'block' : 'none'; } }
-    if (!target || target === 'linea3') { if (lines[2]) { lines[2].textContent = l3; lines[2].style.display = chk3 ? 'block' : 'none'; } }
-    if (!target || target === 'linea4') { if (lines[3]) { lines[3].textContent = l4; lines[3].style.display = chk4 ? 'block' : 'none'; } }
-  });
-}
-
-document.addEventListener('DOMContentLoaded', function () {
-  document.querySelectorAll('.modelo-card').forEach(card => {
-    card.addEventListener('click', function() {
-      seleccionarPlantilla(card);
-    });
-  });
-});
-</script>
 
 
 
@@ -445,7 +327,17 @@ function seleccionarModelo(el, id) {
     nextBtn.classList.add('active');
   }
 }
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".modelo-card").forEach(card => {
+    card.addEventListener("click", () => {
+      document.querySelectorAll(".modelo-card").forEach(c => c.classList.remove("active"));
+      card.classList.add("active");
+    });
+  });
+  updatePreview();
+});
 </script>
+<script src="../assets/js/preview.js"></script>
 
 
 <?php if ($step == 3): ?>
