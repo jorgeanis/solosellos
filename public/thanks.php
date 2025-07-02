@@ -41,7 +41,6 @@ if (!$order) {
     exit;
 }
 
-$estado = $order['status'] ?? '';
 $badgeClass = match($estado) {
     'Recibido' => 'badge-gray',
     'Confirmado' => 'badge-blue',
