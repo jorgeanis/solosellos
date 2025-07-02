@@ -55,6 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 <h2>Asistente de Configuración</h2>
+<div id="progress"><div id="progressBar"></div></div>
 <form method="POST" enctype="multipart/form-data" id="wizardForm">
 <div id="wizard" style="display:flex;gap:40px;">
   <div class="steps" style="width:40%;max-width:350px;">
@@ -106,8 +107,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <button type="submit" id="finishBtn" style="display:none;">Guardar</button>
     </div>
   </div>
-  <div style="flex:1;border:1px solid #ccc;border-radius:8px;overflow:hidden;">
-      <iframe id="previewFrame" src="../public/index.php?u=<?= urlencode($_SESSION['user']['link_code']) ?>" style="width:100%;height:600px;border:0;"></iframe>
+  <div style="flex:1;display:flex;justify-content:center;align-items:center;">
+      <div class="mobile-frame">
+          <iframe id="previewFrame" src="../public/index.php?u=<?= urlencode($_SESSION['user']['link_code']) ?>"></iframe>
+      </div>
   </div>
 </div>
 </form>
@@ -116,6 +119,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 .step{display:none;}
 .step.active{display:block;animation:fadeIn 0.3s ease;}
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+#progress{height:8px;background:#e0e0e0;border-radius:4px;margin-bottom:20px;overflow:hidden;}
+#progressBar{height:100%;width:0;background:#1abc9c;transition:width .3s ease;}
+.mobile-frame{background:url('../assets/images/movil.png') no-repeat center center;background-size:contain;width:285px;height:549px;position:relative;}
+.mobile-frame iframe{position:absolute;top:45px;left:30px;width:225px;height:484px;border:0;border-radius:0;}
 </style>
 
 <script>
@@ -124,6 +131,7 @@ let current = 0;
 const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 const finishBtn = document.getElementById('finishBtn');
+const progressBar = document.getElementById('progressBar');
 function showStep(i){
   steps[current].classList.remove('active');
   current=i;
@@ -131,6 +139,8 @@ function showStep(i){
   prevBtn.style.display = current===0? 'none':'inline-block';
   nextBtn.style.display = current===steps.length-1? 'none':'inline-block';
   finishBtn.style.display = current===steps.length-1? 'inline-block':'none';
+  const percent = ((current+1)/steps.length)*100;
+  progressBar.style.width = percent+'%';
 }
 prevBtn.addEventListener('click',()=>{ if(current>0) showStep(current-1); });
 nextBtn.addEventListener('click',()=>{ if(current<steps.length-1) showStep(current+1); });
