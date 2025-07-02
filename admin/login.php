@@ -14,7 +14,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     if ($user && hash('sha256', $pass) === $user['password']) {
         $_SESSION['user'] = $user;
-        if (empty($user['setup_complete'])) {
+        $needs_setup = empty($user['name']) || empty($user['color_primary']);
+        if ($needs_setup) {
             header("Location: setup_wizard.php");
         } else {
             header("Location: dashboard.php");
