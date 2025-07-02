@@ -133,7 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
 .phone-frame{position:relative;width:310px;height:610px;max-width:100%;margin:auto;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:40px;}
 .phone-frame iframe{width:100%;height:100%;border:0;overflow:hidden;}
-.phone-img{position:absolute;top:0;left:0;width:100%;height:100%;z-index:20;pointer-events:none;}
+.phone-img{position:absolute;top:-5%;left:-5%;width:110%;height:110%;z-index:20;pointer-events:none;}
 .phone-frame iframe::-webkit-scrollbar{display:none;}
 .toolbar{display:flex;gap:5px;margin-bottom:5px;}
 .toolbar button{background:#f0f0f0;border:1px solid #ccc;padding:4px 6px;cursor:pointer;}
