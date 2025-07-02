@@ -116,9 +116,10 @@
     <a href="plantillas.php"><i class="fa-solid fa-palette"></i> Plantillas</a>
     <a href="pedidos.php"><i class="fa-solid fa-box"></i> Pedidos</a>
     <a href="personalizar.php"><i class="fa-solid fa-wand-magic-sparkles"></i> Personalizar</a>
-    <?php if ($_SESSION['user']['email'] == 'admin@solosellos.com'): ?>
-        <a href="clientes.php"><i class="fa-solid fa-users-gear"></i> Admins</a>
-    <?php endif; ?>
+     <?php if ($_SESSION['user']['email'] == 'admin@solosellos.com'): ?>
+         <a href="clientes.php"><i class="fa-solid fa-users-gear"></i> Admins</a>
+         <a href="configuracion.php"><i class="fa-solid fa-gear"></i> Configuración</a>
+     <?php endif; ?>
     <a href="logout.php"><i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión</a>
 </div>
 <div class="main">
