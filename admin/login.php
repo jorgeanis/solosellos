@@ -189,17 +189,7 @@ if (isset($_GET['preapproval_id'])) {
     if (isset($data['status']) && $data['status'] === 'authorized') {
         $referencia = $data['external_reference'];
         $user_id = str_replace("usuario_", "", $referencia);
-        $conn->query("UPDATE users SET active = 1, plan = 'mensual', preapproval_id = '$preapproval_id' WHERE id = $user_id");
-
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-        $stmt->execute([$user_id]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($user) {
-            $_SESSION['user'] = $user;
-            header("Location: setup_wizard.php");
-            exit;
-        }
+        $conn->query("UPDATE users SET active = 1, plan = 'mensual' WHERE id = $user_id");
     }
 }
 ?>
