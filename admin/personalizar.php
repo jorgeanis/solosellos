@@ -1,60 +1,75 @@
 <?php
-session_start();
-if (!isset($user) && isset($_SESSION['user'])) {
-    $user = $_SESSION['user'];
-}
-if (!isset($_SESSION['user_id']) && isset($user['id'])) {
-    $_SESSION['user_id'] = $user['id'];
-}
-?>
-<?php<?php
-session_start();
-if (!isset($_SESSION['user_id']) && isset($user['id'])) {
-    $_SESSION['user_id'] = $user['id'];
-}
-?>
- session_start(); $_SESSION['user_id'] = $user['id']; ?>
-<?php
 require_once 'includes/auth.php';
 require_once 'includes/header.php';
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $color = $_POST['color_primary'];
-    $email = $_POST['email'] ?? '';
-    $password = $_POST['password'] ?? '';
-    $name = $_POST['name'] ?? '';
-    $color_secundary = $_POST['color_secundary'] ?? '';
-$background_image = $_POST['background_image'] ?? '';
-    $whatsapp = $_POST['whatsapp'] ?? '';
-    
-    $welcome = $_POST['welcome'];
-    $footer = $_POST['footer'];
-    $logo = $_SESSION['user']['logo'];
+$success_message   = '';
+$error_message     = '';
+$password_success  = '';
+$password_error    = '';
+$show_password_modal = false;
 
-    if (!empty($_FILES["logo"]["name"])) {
-        $logo = basename($_FILES["logo"]["name"]);
-        move_uploaded_file($_FILES["logo"]["tmp_name"], "../assets/images/" . $logo);
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    if (isset($_POST['password_change'])) {
+        $show_password_modal = true;
+        $current = $_POST['current_password'] ?? '';
+        $new     = $_POST['new_password'] ?? '';
+        $confirm = $_POST['confirm_password'] ?? '';
+
+        if ($new === $confirm) {
+            $stmt = $pdo->prepare('SELECT password FROM users WHERE id = ?');
+            $stmt->execute([$_SESSION['user']['id']]);
+            $hash = $stmt->fetchColumn();
+
+            if ($hash && password_verify($current, $hash)) {
+                $stmt = $pdo->prepare('UPDATE users SET password = ? WHERE id = ?');
+                $stmt->execute([password_hash($new, PASSWORD_DEFAULT), $_SESSION['user']['id']]);
+                $password_success = 'Contraseña actualizada.';
+            } else {
+                $password_error = 'La contraseña actual no es correcta.';
+            }
+        } else {
+            $password_error = 'Las nuevas contraseñas no coinciden.';
+        }
+    } else {
+        $color = $_POST['color_primary'];
+        $email = $_POST['email'] ?? '';
+        $name  = $_POST['name'] ?? '';
+        $color_secundary = $_POST['color_secundary'] ?? '';
+        $background_image = $_POST['background_image'] ?? '';
+        $whatsapp = $_POST['whatsapp'] ?? '';
+
+        $welcome = $_POST['welcome'];
+        $footer  = $_POST['footer'];
+        $logo    = $_SESSION['user']['logo'];
+
+        if (!empty($_FILES["logo"]["name"])) {
+            $logo = basename($_FILES["logo"]["name"]);
+            move_uploaded_file($_FILES["logo"]["tmp_name"], "../assets/images/" . $logo);
+        }
+
+        $stmt = $pdo->prepare("UPDATE users SET name = ?, email = ?, color_primary = ?, color_secundary = ?, logo = ?, footer = ?, whatsapp = ?, background_image = ?, welcome = ? WHERE id = ?");
+        $stmt->execute([$name, $email, $color, $color_secundary, $logo, $footer, $whatsapp, $background_image, $welcome, $_SESSION['user']['id']]);
+
+        $_SESSION['user']['color_primary'] = $color;
+        $_SESSION['user']['logo']  = $logo;
+        $_SESSION['user']['footer'] = $footer;
+        $_SESSION['user']['name']   = $name;
+        $_SESSION['user']['email']  = $email;
+        $_SESSION['user']['color_secundary'] = $color_secundary;
+        $_SESSION['user']['whatsapp'] = $whatsapp;
+        $_SESSION['user']['welcome'] = $welcome;
+        $_SESSION['user']['background_image'] = $background_image;
     }
-
-$stmt = $pdo->prepare("UPDATE users SET name = ?, email = ?, password = ?, color_primary = ?, color_secundary = ?, logo = ?, footer = ?, whatsapp = ?, background_image = ? , welcome = ?WHERE id = ?");
-$stmt->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT), $color, $color_secundary, $logo, $footer, $whatsapp, $background_image, $welcome, $_SESSION['user']['id']]);
-
-    $_SESSION['user']['color_primary'] = $color;
-    $_SESSION['user']['logo'] = $logo;
-    $_SESSION['user']['footer'] = $footer;
-    $_SESSION['user']['name'] = $name;
-    $_SESSION['user']['email'] = $email;
-    $_SESSION['user']['color_secundary'] = $color_secundary;
-    $_SESSION['user']['whatsapp'] = $whatsapp;
-    $_SESSION['user']['welcome'] = $welcome;
 }
 ?>
 
 <h2>Personalización del sitio</h2>
-
+<p>
+  <a href="setup_wizard.php?force=1" style="background:#1abc9c;color:#fff;padding:6px 12px;border-radius:4px;text-decoration:none;">Ejecutar asistente</a>
+</p>
 
 <form method="POST" enctype="multipart/form-data">
-  <input type="hidden" name="background_image" id="background_image">
+  <input type="hidden" name="background_image" id="background_image" value="<?= htmlspecialchars($_SESSION['user']['background_image'] ?? '') ?>">
 <div style="display: flex; gap: 40px; align-items: flex-start;">
 
 <div style="width: 50%;">
@@ -68,11 +83,7 @@ $stmt->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT), $colo
     <label>Email:</label><br>
     <input type="email" name="email" value="<?= $_SESSION['user']['email'] ?? '' ?>"><br><br>
 
-    <label>Contraseña:</label><br>
-    <div style="position: relative;">
-        <input type="password" id="password" name="password" style="padding-right: 30px;">
-        <span onclick="togglePassword()" style="position: absolute; right: 8px; top: 5px; cursor: pointer;">👁️</span>
-    </div><br><br>
+    <button type="button" onclick="openPasswordModal()">Cambiar contraseña</button><br><br>
 
 
 <div style="display: flex; gap: 40px; align-items: flex-start; margin-bottom: 15px;">
@@ -97,7 +108,7 @@ $stmt->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT), $colo
 
     <div>
         <label><strong>Mensaje de bienvenida:</strong></label><br>
-<textarea name="welcome" rows="4" style="width:100%; margin-bottom:20px; height:50px;"><?php echo htmlspecialchars($user['welcome'] ?? '', ENT_QUOTES); ?></textarea><br><br>
+<textarea name="welcome" rows="4" style="width:100%; margin-bottom:20px; height:50px;"><?php echo htmlspecialchars($_SESSION['user']['welcome'] ?? '', ENT_QUOTES); ?></textarea><br><br>
 </div
 
     <label>Texto del footer:</label><br>
@@ -111,7 +122,7 @@ $stmt->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT), $colo
   <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:15px;">
     <?php
       $fondos = glob('../assets/images/bg/*.jpg');
-      $fondo_actual = $user['background_image'] ?? '';
+      $fondo_actual = $_SESSION['user']['background_image'] ?? '';
       foreach ($fondos as $fondo) {
     $nombre = basename($fondo);
     $checked = ($nombre === $fondo_actual) ? 'checked' : '';
@@ -128,6 +139,45 @@ $stmt->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT), $colo
 
 <button type="submit">Guardar cambios</button>
 </form>
+
+<style>
+@keyframes fadeInDown { from { opacity:0; transform:translateY(-30px); } to { opacity:1; transform:translateY(0); } }
+@keyframes fadeOutUp   { from { opacity:1; transform:translateY(0); } to { opacity:0; transform:translateY(-30px); } }
+@keyframes shake {
+  0%,100%{transform:translateX(0);}20%,60%{transform:translateX(-10px);}40%,80%{transform:translateX(10px);}
+}
+.modal{display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.6);justify-content:center;align-items:center;}
+.modal.mostrar{display:flex;}
+.modal-contenido{background:#fff;padding:20px;border-radius:8px;width:300px;animation:fadeInDown .3s forwards;}
+.modal-cerrar{animation:fadeOutUp .3s forwards;}
+.shake{animation:shake .3s;}
+.mensaje-error{color:red;text-align:center;margin:0 0 10px;}
+.mensaje-exito{color:green;text-align:center;margin:0 0 10px;}
+</style>
+
+<div id="passwordModal" class="modal<?= $show_password_modal ? ' mostrar' : '' ?>">
+  <div class="modal-contenido<?= $password_error ? ' shake' : '' ?>">
+    <span style="float:right; cursor:pointer;" onclick="closePasswordModal()">&times;</span>
+    <h3>Cambiar contraseña</h3>
+    <?php if ($password_success): ?>
+      <p class="mensaje-exito" id="passwordMessage"><?= $password_success ?></p>
+    <?php elseif ($password_error): ?>
+      <p class="mensaje-error" id="passwordMessage"><?= $password_error ?></p>
+    <?php else: ?>
+      <p id="passwordMessage" style="display:none;"></p>
+    <?php endif; ?>
+    <form method="POST">
+      <input type="hidden" name="password_change" value="1">
+      <label>Contraseña actual:</label><br>
+      <input type="password" name="current_password" required><br><br>
+      <label>Nueva contraseña:</label><br>
+      <input type="password" name="new_password" required><br><br>
+      <label>Confirmar contraseña:</label><br>
+      <input type="password" name="confirm_password" required><br><br>
+      <button type="submit">Actualizar</button>
+    </form>
+  </div>
+</div>
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
@@ -150,12 +200,6 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 </script>
 
-<script>
-function togglePassword() {
-    const pwd = document.getElementById("password");
-    pwd.type = pwd.type === "password" ? "text" : "password";
-}
-</script>
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
@@ -229,4 +273,27 @@ document.querySelectorAll("input[type=radio][name=bg_select]").forEach(el => {
     document.getElementById("background_image").value = el.value;
   });
 });
+const selected = document.querySelector("input[name='bg_select']:checked");
+if (selected) {
+  document.getElementById('background_image').value = selected.value;
+}
+
+function openPasswordModal() {
+  const modal = document.getElementById('passwordModal');
+  modal.classList.add('mostrar');
+  modal.querySelector('.modal-contenido').classList.remove('modal-cerrar');
+}
+
+function closePasswordModal() {
+  const modal = document.getElementById('passwordModal');
+  const cont = modal.querySelector('.modal-contenido');
+  cont.classList.add('modal-cerrar');
+  setTimeout(() => {
+    modal.classList.remove('mostrar');
+    cont.classList.remove('modal-cerrar');
+  }, 300);
+}
+<?php if ($show_password_modal): ?>
+document.addEventListener('DOMContentLoaded', openPasswordModal);
+<?php endif; ?>
 </script>
