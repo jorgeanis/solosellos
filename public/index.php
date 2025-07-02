@@ -104,7 +104,6 @@ $models = $stmt->fetchAll();
       overflow-x: hidden;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
     }
 
     input, select, textarea {
