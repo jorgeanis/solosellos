@@ -28,6 +28,7 @@ $models = $stmt->fetchAll();
 <style>
     :root {
       --color-principal: <?= $user['color_primary'] ?>;
+      --color-secundario: <?= $user['color_secundary'] ?>;
       --fuente-principal: '<?= $user['font_family'] ?>', sans-serif;
     }
     body {
@@ -365,7 +366,8 @@ document.addEventListener("DOMContentLoaded", () => {
   <input type="hidden" name="linea4" value="<?= htmlspecialchars($_GET['linea4'] ?? '') ?>">
 </form>
 <?php endif; ?>
-</html>
-<footer style="background-color: #fff; border: 1px solid #ccc; padding: 10px 20px; font-family: Roboto, sans-serif; border-radius: 8px; width: calc(85% - 20px); max-width: 95%; text-align: center; margin: 40px auto 20px auto;">
+<footer style="background-color: var(--color-secundario); padding: 8px 15px; font-family: Roboto, sans-serif; font-size: 14px; text-align: center; margin-top: auto; border-radius: 6px; width: calc(85% - 20px); max-width:95%;">
   <?= isset($user['footer']) ? $user['footer'] : '' ?>
 </footer>
+</body>
+</html>
