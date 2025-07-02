@@ -23,12 +23,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             if ($hash && password_verify($current, $hash)) {
                 $stmt = $pdo->prepare('UPDATE users SET password = ? WHERE id = ?');
                 $stmt->execute([password_hash($new, PASSWORD_DEFAULT), $_SESSION['user']['id']]);
-                $password_success = 'Contrase\xC3\xB1a actualizada.';
+                $password_success = 'Contraseña actualizada.';
             } else {
-                $password_error = 'La contrase\xC3\xB1a actual no es correcta.';
+                $password_error = 'La contraseña actual no es correcta.';
             }
         } else {
-            $password_error = 'Las nuevas contrase\xC3\xB1as no coinciden.';
+            $password_error = 'Las nuevas contraseñas no coinciden.';
         }
     } else {
         $color = $_POST['color_primary'];
