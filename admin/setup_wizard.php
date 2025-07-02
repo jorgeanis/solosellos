@@ -122,7 +122,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 #progress{height:8px;background:#e0e0e0;border-radius:4px;margin-bottom:20px;overflow:hidden;}
 #progressBar{height:100%;width:0;background:#1abc9c;transition:width .3s ease;}
 .mobile-frame{background:url('../assets/images/movil.png') no-repeat center center;background-size:contain;width:285px;height:549px;position:relative;}
-.mobile-frame iframe{position:absolute;top:45px;left:30px;width:225px;height:484px;border:0;border-radius:0;}
+.mobile-frame iframe{
+    position:absolute;
+    top:45px;
+    left:30px;
+    width:300px;
+    height:645px;
+    border:0;
+    border-radius:0;
+    transform:scale(0.75);
+    transform-origin:top left;
+}
 </style>
 
 <script>
@@ -148,7 +158,54 @@ showStep(0);
 
 const iframe = document.getElementById('previewFrame');
 let previewDoc = null;
-iframe.addEventListener('load', () => { previewDoc = iframe.contentWindow.document; updatePreview(); });
+iframe.addEventListener('load', () => {
+  previewDoc = iframe.contentWindow.document;
+  setupPreviewInteractions();
+  updatePreview();
+});
+
+function setupPreviewInteractions(){
+  if(!previewDoc) return;
+  hideScrollbars();
+  enableDragScroll();
+  zoomOut();
+}
+
+function hideScrollbars(){
+  const style = previewDoc.createElement('style');
+  style.textContent = 'body::-webkit-scrollbar,html::-webkit-scrollbar{display:none;} html{scrollbar-width:none;-ms-overflow-style:none;}';
+  previewDoc.head.appendChild(style);
+}
+
+function zoomOut(){
+  previewDoc.documentElement.style.zoom = '0.85';
+}
+
+function enableDragScroll(){
+  const win = iframe.contentWindow;
+  let startY = 0;
+  let scrollY = 0;
+  let dragging = false;
+  const start = e => {
+    dragging = true;
+    startY = e.touches ? e.touches[0].clientY : e.clientY;
+    scrollY = win.scrollY;
+  };
+  const move = e => {
+    if(!dragging) return;
+    const y = e.touches ? e.touches[0].clientY : e.clientY;
+    win.scrollTo(0, scrollY - (y - startY));
+    if(e.cancelable) e.preventDefault();
+  };
+  const end = () => { dragging = false; };
+  win.document.addEventListener('mousedown', start);
+  win.document.addEventListener('mousemove', move);
+  win.document.addEventListener('mouseup', end);
+  win.document.addEventListener('mouseleave', end);
+  win.document.addEventListener('touchstart', start);
+  win.document.addEventListener('touchmove', move, {passive:false});
+  win.document.addEventListener('touchend', end);
+}
 
 function updatePreview(){
   if(!previewDoc) return;
