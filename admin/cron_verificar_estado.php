@@ -1,5 +1,6 @@
 <?php
 require_once "includes/config.php";
+require_once "includes/settings.php";
 
 file_put_contents(__DIR__ . "/cron_estado.log", "[" . date("Y-m-d H:i:s") . "] Cron ejecutado\n", FILE_APPEND);
 
@@ -14,12 +15,13 @@ if ($result->num_rows > 0) {
         $user_id = $row['id'];
         $preapproval_id = $row['preapproval_id'];
 
+        $token = get_setting('mp_access_token');
         $ch = curl_init();
         curl_setopt_array($ch, [
             CURLOPT_URL => "https://api.mercadopago.com/preapproval/" . $preapproval_id,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HTTPHEADER => [
-                "Authorization: Bearer APP_USR-1930182136477954-061623-8099269069413fe668c807c1046ed8a9-687266560"
+                "Authorization: Bearer $token"
             ]
         ]);
         $response = curl_exec($ch);

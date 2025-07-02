@@ -1,9 +1,10 @@
 <?php
 require_once __DIR__ . '/includes/config.php';
+require_once __DIR__ . '/includes/settings.php';
 
 $input = file_get_contents("php://input");
 $headers = getallheaders();
-$clave_secreta = "TU_CLAVE_SECRETA";
+$clave_secreta = get_setting('webhook_secret');
 $firma_recibida = $headers['x-signature'] ?? '';
 $hash_calculado = hash_hmac('sha256', $input, $clave_secreta);
 
@@ -22,10 +23,11 @@ fclose($log);
 if ($payload['type'] === 'preapproval') {
     $preapproval_id = $payload['data']['id'];
 
+    $token = get_setting('mp_access_token');
     $ch = curl_init("https://api.mercadopago.com/preapproval/$preapproval_id");
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "Authorization: Bearer TU_ACCESS_TOKEN"
+        "Authorization: Bearer $token"
     ]);
     $response = curl_exec($ch);
     $data = json_decode($response, true);

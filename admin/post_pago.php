@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once "includes/config.php";
+require_once "includes/settings.php";
 
 $preapproval_id = $_GET['preapproval_id'] ?? '';
 if (!$preapproval_id) {
@@ -8,12 +9,13 @@ if (!$preapproval_id) {
 }
 
 // Consultar API de MercadoPago
+$token = get_setting('mp_access_token');
 $curl = curl_init();
 curl_setopt_array($curl, [
     CURLOPT_URL => "https://api.mercadopago.com/preapproval/" . $preapproval_id,
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_HTTPHEADER => [
-        "Authorization: Bearer APP_USR-1930182136477954-061623-8099269069413fe668c807c1046ed8a9-687266560"
+        "Authorization: Bearer $token"
     ]
 ]);
 
