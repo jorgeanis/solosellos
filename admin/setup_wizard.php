@@ -55,6 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 <h2>Asistente de Configuración</h2>
+<div id="progress"><div id="progressBar"></div></div>
 <form method="POST" enctype="multipart/form-data" id="wizardForm">
 <div id="wizard" style="display:flex;gap:40px;">
   <div class="steps" style="width:40%;max-width:350px;">
@@ -106,8 +107,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <button type="submit" id="finishBtn" style="display:none;">Guardar</button>
     </div>
   </div>
-  <div style="flex:1;border:1px solid #ccc;border-radius:8px;overflow:hidden;">
-      <iframe id="previewFrame" src="../public/index.php?u=<?= urlencode($_SESSION['user']['link_code']) ?>" style="width:100%;height:600px;border:0;"></iframe>
+  <div style="flex:1;display:flex;justify-content:center;align-items:center;">
+      <div class="mobile-frame">
+          <iframe id="previewFrame" src="../public/index.php?u=<?= urlencode($_SESSION['user']['link_code']) ?>"></iframe>
+          <img class="phone-overlay" src="../assets/images/movil.png" alt="phone frame">
+      </div>
   </div>
 </div>
 </form>
@@ -116,6 +120,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 .step{display:none;}
 .step.active{display:block;animation:fadeIn 0.3s ease;}
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+#progress{height:8px;background:#e0e0e0;border-radius:4px;margin-bottom:20px;overflow:hidden;}
+#progressBar{height:100%;width:0;background:#1abc9c;transition:width .3s ease;}
+.mobile-frame{position:relative;width:285px;height:549px;}
+.mobile-frame iframe{
+    position:absolute;
+    top:30px;
+    left:25px;
+    width:310px;
+    height:670px;
+    border:0;
+    border-radius:0;
+    transform:scale(0.75);
+    transform-origin:top left;
+}
+.phone-overlay{
+    position:absolute;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    pointer-events:none;
+    z-index:1;
+}
 </style>
 
 <script>
@@ -124,6 +151,7 @@ let current = 0;
 const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 const finishBtn = document.getElementById('finishBtn');
+const progressBar = document.getElementById('progressBar');
 function showStep(i){
   steps[current].classList.remove('active');
   current=i;
@@ -131,6 +159,8 @@ function showStep(i){
   prevBtn.style.display = current===0? 'none':'inline-block';
   nextBtn.style.display = current===steps.length-1? 'none':'inline-block';
   finishBtn.style.display = current===steps.length-1? 'inline-block':'none';
+  const percent = ((current+1)/steps.length)*100;
+  progressBar.style.width = percent+'%';
 }
 prevBtn.addEventListener('click',()=>{ if(current>0) showStep(current-1); });
 nextBtn.addEventListener('click',()=>{ if(current<steps.length-1) showStep(current+1); });
@@ -138,7 +168,54 @@ showStep(0);
 
 const iframe = document.getElementById('previewFrame');
 let previewDoc = null;
-iframe.addEventListener('load', () => { previewDoc = iframe.contentWindow.document; updatePreview(); });
+iframe.addEventListener('load', () => {
+  previewDoc = iframe.contentWindow.document;
+  setupPreviewInteractions();
+  updatePreview();
+});
+
+function setupPreviewInteractions(){
+  if(!previewDoc) return;
+  hideScrollbars();
+  enableDragScroll();
+  zoomOut();
+}
+
+function hideScrollbars(){
+  const style = previewDoc.createElement('style');
+  style.textContent = 'body::-webkit-scrollbar,html::-webkit-scrollbar{display:none;} html{scrollbar-width:none;-ms-overflow-style:none;}';
+  previewDoc.head.appendChild(style);
+}
+
+function zoomOut(){
+  previewDoc.documentElement.style.zoom = '0.85';
+}
+
+function enableDragScroll(){
+  const win = iframe.contentWindow;
+  let startY = 0;
+  let scrollY = 0;
+  let dragging = false;
+  const start = e => {
+    dragging = true;
+    startY = e.touches ? e.touches[0].clientY : e.clientY;
+    scrollY = win.scrollY;
+  };
+  const move = e => {
+    if(!dragging) return;
+    const y = e.touches ? e.touches[0].clientY : e.clientY;
+    win.scrollTo(0, scrollY - (y - startY));
+    if(e.cancelable) e.preventDefault();
+  };
+  const end = () => { dragging = false; };
+  win.document.addEventListener('mousedown', start);
+  win.document.addEventListener('mousemove', move);
+  win.document.addEventListener('mouseup', end);
+  win.document.addEventListener('mouseleave', end);
+  win.document.addEventListener('touchstart', start);
+  win.document.addEventListener('touchmove', move, {passive:false});
+  win.document.addEventListener('touchend', end);
+}
 
 function updatePreview(){
   if(!previewDoc) return;
