@@ -4,9 +4,13 @@ require_once 'includes/header.php';
 
 $success_message = '';
 $error_message = '';
+$password_success = '';
+$password_error = '';
+$show_password_modal = false;
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if (isset($_POST['password_change'])) {
+        $show_password_modal = true;
         $current = $_POST['current_password'] ?? '';
         $new     = $_POST['new_password'] ?? '';
         $confirm = $_POST['confirm_password'] ?? '';
@@ -19,12 +23,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             if ($hash && password_verify($current, $hash)) {
                 $stmt = $pdo->prepare('UPDATE users SET password = ? WHERE id = ?');
                 $stmt->execute([password_hash($new, PASSWORD_DEFAULT), $_SESSION['user']['id']]);
-                $success_message = 'Contrase\xC3\xB1a actualizada.';
+                $password_success = 'Contrase\xC3\xB1a actualizada.';
             } else {
-                $error_message = 'La contrase\xC3\xB1a actual no es correcta.';
+                $password_error = 'La contrase\xC3\xB1a actual no es correcta.';
             }
         } else {
-            $error_message = 'Las nuevas contrase\xC3\xB1as no coinciden.';
+            $password_error = 'Las nuevas contrase\xC3\xB1as no coinciden.';
         }
     } else {
         $color = $_POST['color_primary'];
@@ -60,11 +64,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 ?>
 
 <h2>Personalización del sitio</h2>
-<?php if (!empty($success_message)): ?>
-    <p style="color:green;"><?= $success_message ?></p>
-<?php elseif (!empty($error_message)): ?>
-    <p style="color:red;"><?= $error_message ?></p>
-<?php endif; ?>
 
 
 <form method="POST" enctype="multipart/form-data">
@@ -139,10 +138,32 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 <button type="submit">Guardar cambios</button>
 </form>
 
-<div id="passwordModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center;">
-  <div style="background:#fff; padding:20px; border-radius:8px; width:300px;">
+<style>
+@keyframes fadeInDown { from { opacity:0; transform:translateY(-30px); } to { opacity:1; transform:translateY(0); } }
+@keyframes fadeOutUp   { from { opacity:1; transform:translateY(0); } to { opacity:0; transform:translateY(-30px); } }
+@keyframes shake {
+  0%,100%{transform:translateX(0);}20%,60%{transform:translateX(-10px);}40%,80%{transform:translateX(10px);}
+}
+.modal{display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.6);justify-content:center;align-items:center;}
+.modal.mostrar{display:flex;}
+.modal-contenido{background:#fff;padding:20px;border-radius:8px;width:300px;animation:fadeInDown .3s forwards;}
+.modal-cerrar{animation:fadeOutUp .3s forwards;}
+.shake{animation:shake .3s;}
+.mensaje-error{color:red;text-align:center;margin:0 0 10px;}
+.mensaje-exito{color:green;text-align:center;margin:0 0 10px;}
+</style>
+
+<div id="passwordModal" class="modal<?= $show_password_modal ? ' mostrar' : '' ?>">
+  <div class="modal-contenido<?= $password_error ? ' shake' : '' ?>">
     <span style="float:right; cursor:pointer;" onclick="closePasswordModal()">&times;</span>
     <h3>Cambiar contraseña</h3>
+    <?php if ($password_success): ?>
+      <p class="mensaje-exito" id="passwordMessage"><?= $password_success ?></p>
+    <?php elseif ($password_error): ?>
+      <p class="mensaje-error" id="passwordMessage"><?= $password_error ?></p>
+    <?php else: ?>
+      <p id="passwordMessage" style="display:none;"></p>
+    <?php endif; ?>
     <form method="POST">
       <input type="hidden" name="password_change" value="1">
       <label>Contraseña actual:</label><br>
@@ -256,10 +277,21 @@ if (selected) {
 }
 
 function openPasswordModal() {
-  document.getElementById('passwordModal').style.display = 'flex';
+  const modal = document.getElementById('passwordModal');
+  modal.classList.add('mostrar');
+  modal.querySelector('.modal-contenido').classList.remove('modal-cerrar');
 }
 
 function closePasswordModal() {
-  document.getElementById('passwordModal').style.display = 'none';
+  const modal = document.getElementById('passwordModal');
+  const cont = modal.querySelector('.modal-contenido');
+  cont.classList.add('modal-cerrar');
+  setTimeout(() => {
+    modal.classList.remove('mostrar');
+    cont.classList.remove('modal-cerrar');
+  }, 300);
 }
+<?php if ($show_password_modal): ?>
+document.addEventListener('DOMContentLoaded', openPasswordModal);
+<?php endif; ?>
 </script>
