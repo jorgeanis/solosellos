@@ -2,10 +2,10 @@
 require_once 'includes/auth.php';
 require_once 'includes/header.php';
 
-$success_message = '';
-$error_message = '';
-$password_success = '';
-$password_error = '';
+$success_message   = '';
+$error_message     = '';
+$password_success  = '';
+$password_error    = '';
 $show_password_modal = false;
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
