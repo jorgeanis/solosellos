@@ -164,7 +164,17 @@ $models = $stmt->fetchAll();
     accent-color: var(--color-principal);
 }
 
-</style>
+
+    .main-wrapper {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+    }
+    footer {
+        margin-top: auto;
+    }
+    </style>
 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -190,7 +200,8 @@ $models = $stmt->fetchAll();
 
 </head>
 <?php $bg = isset($user['background_image']) ? '../assets/images/bg/' . $user['background_image'] : ''; ?>
-<body style="<?= $bg ? 'background-image: url(' . $bg . '); background-size: cover; background-position: center;' : '' ?>">
+<body style="<?= $bg ? 'background-image: url(' . $bg . '); background-size: cover; background-position: center;' : '' ?>
+<div class="main-wrapper">">
 <header style="display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background-color: #fff; border-bottom: 1px solid #ccc; font-family: Roboto, sans-serif; border-radius: 8px; max-width: 95%;">
   <div style="display: flex; align-items: center;">
     <img src="../assets/images/<?= $user['logo'] ?>" alt="Logo" style="max-height: 50px; margin-right: 15px;">
@@ -366,6 +377,7 @@ document.addEventListener("DOMContentLoaded", () => {
 </form>
 <?php endif; ?>
 </html>
+</div>
 <footer style="background-color: #fff; border: 1px solid #ccc; padding: 10px 20px; font-family: Roboto, sans-serif; border-radius: 8px; width: calc(85% - 20px); max-width: 95%; text-align: center; margin: 40px auto 20px auto;">
   <?= isset($user['footer']) ? $user['footer'] : '' ?>
 </footer>
