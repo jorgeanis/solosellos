@@ -305,18 +305,7 @@ $models = $stmt->fetchAll();
   <button type="submit" class="boton-siguiente active" style="margin-top: 20px;">Siguiente</button>
 </form>
 <?php endif; ?>
-
-
 </div>
-
-
-
-
-
-
-
-
-
 <script>
 function seleccionarModelo(el, id) {
   document.querySelectorAll('.modelo-card').forEach(card => card.classList.remove('active'));
