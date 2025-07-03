@@ -42,7 +42,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $referencia = "usuario_" . $user_id;
     $base_link = get_setting('mp_subscription_link');
     if (!$base_link) {
-        $plan_id = "2c938084977bbd9301977bcadb8b0000";
+        $plan_id = "2c93808497c876110197ccac22f2022c";
         $base_link = "https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id={$plan_id}";
     }
     $url_mp = $base_link . "&external_reference={$referencia}";
