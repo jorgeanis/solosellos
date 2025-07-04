@@ -4,6 +4,7 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 require_once __DIR__ . '/includes/config.php';
+require_once __DIR__ . '/includes/settings.php';
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $nombre = $_POST['nombre'] ?? '';
@@ -39,8 +40,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $stmt->close();
 
     $referencia = "usuario_" . $user_id;
-    $plan_id = "2c938084977bbd9301977bcadb8b0000";
-    $url_mp = "https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id={$plan_id}&external_reference={$referencia}";
+    $base_link = get_setting('mp_subscription_link');
+    if (!$base_link) {
+        $plan_id = "2c93808497c876110197ccac22f2022c";
+        $base_link = "https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id={$plan_id}";
+    }
+    $url_mp = $base_link . "&external_reference={$referencia}";
     header("Location: $url_mp");
     exit;
 }
