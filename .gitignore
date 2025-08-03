@@ -1,2 +1,17 @@
+# Archivos de configuración sensibles
 admin/includes/config.php
 
+# Volcados de base de datos
+db.sql
+*.sql
+
+# Archivos de contexto de IA
+gemini.md
+
+# Archivos de sistema operativo
+.DS_Store
+Thumbs.db
+
+# Archivos de IDE
+.vscode/
+.idea/

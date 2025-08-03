@@ -3,72 +3,18 @@ require_once 'includes/auth.php';
 require_once 'includes/db.php';
 require_once 'includes/header.php';
 
-$stmt = $pdo->prepare("SELECT * FROM templates WHERE id = ? AND user_id = ?");
-$stmt->execute([$id, $_SESSION['user']['id']]);
-$plantilla = $stmt->fetch();
+$id = $_GET['id'] ?? null;
+$plantilla = null;
+
+if ($id) {
+    $stmt = $pdo->prepare("SELECT * FROM templates WHERE id = ? AND user_id = ?");
+    $stmt->execute([$id, $_SESSION['user']['id']]);
+    $plantilla = $stmt->fetch();
+}
 
 $stmt2 = $pdo->prepare("SELECT id, name FROM template_categories WHERE user_id = ?");
 $stmt2->execute([$_SESSION['user']['id']]);
 $categorias = $stmt2->fetchAll();
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $nombre = $_POST['nombre'];
-    $categoria_id = $_POST['categoria'];
-    $fuentes = [$_POST['fuente1'], $_POST['fuente2'], $_POST['fuente3'], $_POST['fuente4']];
-    $tamanos = [$_POST['tamano1'], $_POST['tamano2'], $_POST['tamano3'], $_POST['tamano4']];
-    $negritas = [
-        isset($_POST['negrita1']) ? 1 : 0,
-        isset($_POST['negrita2']) ? 1 : 0,
-        isset($_POST['negrita3']) ? 1 : 0,
-        isset($_POST['negrita4']) ? 1 : 0
-    ];
-    $alineaciones = [$_POST['alineacion1'], $_POST['alineacion2'], $_POST['alineacion3'], $_POST['alineacion4']];
-    $margenes = [$_POST['margen_top1'], $_POST['margen_top2'], $_POST['margen_top3'], $_POST['margen_top4']];
-    $lineas = [$_POST['linea1'], $_POST['linea2'], $_POST['linea3'], $_POST['linea4']];
-    $content = json_encode([
-        'linea1' => $lineas[0],
-        'linea2' => $lineas[1],
-        'linea3' => $lineas[2],
-        'linea4' => $lineas[3]
-    ]);
-
-    try {
-        $stmt = $pdo->prepare("INSERT INTO templates (
-        category_id, content, font_family, user_id, nombre,
-        fuente_linea_1, fuente_linea_2, fuente_linea_3, fuente_linea_4,
-        tamano_linea_1, tamano_linea_2, tamano_linea_3, tamano_linea_4,
-        bold_linea_1, bold_linea_2, bold_linea_3, bold_linea_4,
-        cursiva_linea_1, cursiva_linea_2, cursiva_linea_3, cursiva_linea_4,
-        alineacion_linea_1, alineacion_linea_2, alineacion_linea_3, alineacion_linea_4,
-        margen_top_linea_1, margen_top_linea_2, margen_top_linea_3, margen_top_linea_4,
-        created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
-
-    $stmt->execute([
-        $categoria_id, $content, '', $user_id, $nombre,
-        $fuentes[0], $fuentes[1], $fuentes[2], $fuentes[3],
-        $tamanos[0], $tamanos[1], $tamanos[2], $tamanos[3],
-        $negritas[0], $negritas[1], $negritas[2], $negritas[3],
-        $cursivas[0], $cursivas[1], $cursivas[2], $cursivas[3],
-        $alineaciones[0], $alineaciones[1], $alineaciones[2], $alineaciones[3],
-        $margenes[0], $margenes[1], $margenes[2], $margenes[3]
-    ]);
-
-        header("Location: plantillas.php");
-        exit;
-    } catch (PDOException $e) {
-        echo "<div style='color:red'>❌ Error al actualizar: " . $e->getMessage() . "</div>";
-    }
-}
-?>
-<?php
-require_once 'includes/auth.php';
-require_once 'includes/db.php';
-require_once 'includes/header.php';
-
-$stmt = $pdo->prepare("SELECT id, name FROM template_categories WHERE user_id = ?");
-$stmt->execute([$_SESSION['user']['id']]);
-$categorias = $stmt->fetchAll();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user_id = $_SESSION['user']['id'];
@@ -121,6 +67,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo "<div style='color:red'>❌ Error: " . $e->getMessage() . "</div>";
     }
 }
+
+// Decodificar el contenido JSON para usarlo en el formulario
+$content_data = $plantilla ? json_decode($plantilla['content'], true) : [];
 ?>
 
 <style>
@@ -300,30 +249,31 @@ form {
 
 
 
-<h2 style="margin-bottom: 10px;">Nueva Plantilla: 
-<span style="font-family: 'Roboto', sans-serif; font-weight: bold; font-size: 24px;">
-<?= $plantilla["nombre"] ?>
-</span>
+<h2 style="margin-bottom: 10px;">
+    <?= htmlspecialchars($plantilla['nombre'] ?? 'Nueva Plantilla') ?>
 </h2>
 
 <form method="POST">
-<input type="hidden" id="margen_top1" name="margen_top1" value="<?= $plantilla['margen_top_linea_1'] ?>">
-<input type="hidden" id="margen_top2" name="margen_top2" value="<?= $plantilla['margen_top_linea_2'] ?>">
-<input type="hidden" id="margen_top3" name="margen_top3" value="<?= $plantilla['margen_top_linea_3'] ?>">
-<input type="hidden" id="margen_top4" name="margen_top4" value="<?= $plantilla['margen_top_linea_4'] ?>">
-<input type="hidden" name="alineacion1" value="<?= $plantilla["alineacion_linea_1"] ?>" id="alineacion1" value="center">
-<input type="hidden" name="alineacion2" value="<?= $plantilla["alineacion_linea_2"] ?>" id="alineacion2" value="center">
-<input type="hidden" name="alineacion3" value="<?= $plantilla["alineacion_linea_3"] ?>" id="alineacion3" value="center">
-<input type="hidden" name="alineacion4" value="<?= $plantilla["alineacion_linea_4"] ?>" id="alineacion4" value="center">
-<div class="form-top"><label>Nombre:<br><input type="text" name="nombre" value="<?= htmlspecialchars($plantilla["nombre"]) ?>" style="width:250px" required></label>
-<label>Categoría:<br>
-  <select name="categoria" required>
-<?php foreach ($categorias as $cat): ?>
-  <option value="<?= $cat['id'] ?>" <?= $cat['id'] == $plantilla["category_id"] ? "selected" : "" ?>>
-    <?= htmlspecialchars($cat['name']) ?>
-  </option>
-<?php endforeach; ?>
-</select></label></div>
+<input type="hidden" id="margen_top1" name="margen_top1" value="<?= $plantilla['margen_top_linea_1'] ?? 0 ?>">
+<input type="hidden" id="margen_top2" name="margen_top2" value="<?= $plantilla['margen_top_linea_2'] ?? 0 ?>">
+<input type="hidden" id="margen_top3" name="margen_top3" value="<?= $plantilla['margen_top_linea_3'] ?? 0 ?>">
+<input type="hidden" id="margen_top4" name="margen_top4" value="<?= $plantilla['margen_top_linea_4'] ?? 0 ?>">
+<input type="hidden" name="alineacion1" id="alineacion1" value="<?= $plantilla['alineacion_linea_1'] ?? 'center' ?>">
+<input type="hidden" name="alineacion2" id="alineacion2" value="<?= $plantilla['alineacion_linea_2'] ?? 'center' ?>">
+<input type="hidden" name="alineacion3" id="alineacion3" value="<?= $plantilla['alineacion_linea_3'] ?? 'center' ?>">
+<input type="hidden" name="alineacion4" id="alineacion4" value="<?= $plantilla['alineacion_linea_4'] ?? 'center' ?>">
+<div class="form-top">
+    <label>Nombre:<br><input type="text" name="nombre" value="<?= htmlspecialchars($plantilla['nombre'] ?? '') ?>" style="width:250px" required></label>
+    <label>Categoría:<br>
+        <select name="categoria" required>
+            <?php foreach ($categorias as $cat): ?>
+            <option value="<?= $cat['id'] ?>" <?= ($cat['id'] == ($plantilla['category_id'] ?? null)) ? 'selected' : '' ?>>
+                <?= htmlspecialchars($cat['name']) ?>
+            </option>
+            <?php endforeach; ?>
+        </select>
+    </label>
+</div>
 
 <div class="editor-wrapper">
   <div>
@@ -338,7 +288,7 @@ form {
   <div class="line-controls">
     <div class="fila0">
       <label>Texto Línea 1:</label>
-      <input type="text" name="linea1" value="<?= htmlspecialchars($plantilla["content"] ? json_decode($plantilla["content"], true)["linea1"] : "") ?>" id="linea_input_1" value="Juan J. Gonzalez" oninput="updatePreview()">
+      <input type="text" name="linea1" id="linea_input_1" value="<?= htmlspecialchars($content_data['linea1'] ?? 'Juan J. Gonzalez') ?>" oninput="updatePreview()">
     </div>
     
     <div class="fila1">
@@ -376,7 +326,7 @@ form {
 </select>
       <button type="button" onclick="document.querySelector('[name=negrita1]').checked = !document.querySelector('[name=negrita1]').checked; updatePreview();"><b>B</b></button>
       
-      <input type="number" name="tamano1" value="<?= $plantilla["tamano_linea_1"] ?>" id="tamano1" value="20" min="8" max="100" onchange="updatePreview()" style="width: 60px;">
+      <input type="number" name="tamano1" id="tamano1" value="<?= $plantilla['tamano_linea_1'] ?? 20 ?>" min="8" max="100" onchange="updatePreview()" style="width: 60px;">
     <div class="alineacion-btns" data-linea="1">
       <button type="button" onclick="setAlign(1, 'left', this)">🡸</button>
       <button type="button" onclick="setAlign(1, 'center', this)" class="active">🡺🡸</button>
@@ -386,7 +336,7 @@ form {
 <button type="button" onclick="cambiarMargen(1, 5)">➕</button></div>
     
       
-      <input type="checkbox" name="negrita1" <?= $plantilla["bold_linea_1"] ? "checked" : "" ?> style="display:none">
+      <input type="checkbox" name="negrita1" <?= !empty($plantilla['bold_linea_1']) ? 'checked' : '' ?> style="display:none">
     </div>
     
     
@@ -396,7 +346,7 @@ form {
   <div class="line-controls">
     <div class="fila0">
       <label>Texto Línea 2:</label>
-      <input type="text" name="linea2" value="<?= htmlspecialchars($plantilla["content"] ? json_decode($plantilla["content"], true)["linea2"] : "") ?>" id="linea_input_2" value="Prof. Nivel Inicial" oninput="updatePreview()">
+      <input type="text" name="linea2" id="linea_input_2" value="<?= htmlspecialchars($content_data['linea2'] ?? 'Prof. Nivel Inicial') ?>" oninput="updatePreview()">
     </div>
     
     <div class="fila1">
@@ -434,7 +384,7 @@ form {
 </select>
       <button type="button" onclick="document.querySelector('[name=negrita2]').checked = !document.querySelector('[name=negrita2]').checked; updatePreview();"><b>B</b></button>
       
-      <input type="number" name="tamano2" value="<?= $plantilla["tamano_linea_2"] ?>" id="tamano2" value="20" min="8" max="100" onchange="updatePreview()" style="width: 60px;">
+      <input type="number" name="tamano2" id="tamano2" value="<?= $plantilla['tamano_linea_2'] ?? 20 ?>" min="8" max="100" onchange="updatePreview()" style="width: 60px;">
     <div class="alineacion-btns" data-linea="2">
       <button type="button" onclick="setAlign(2, 'left', this)">🡸</button>
       <button type="button" onclick="setAlign(2, 'center', this)" class="active">🡺🡸</button>
@@ -444,7 +394,7 @@ form {
 <button type="button" onclick="cambiarMargen(2, 5)">➕</button></div>
     
       
-      <input type="checkbox" name="negrita2" <?= $plantilla["bold_linea_2"] ? "checked" : "" ?> style="display:none">
+      <input type="checkbox" name="negrita2" <?= !empty($plantilla['bold_linea_2']) ? 'checked' : '' ?> style="display:none">
     </div>
     
     
@@ -454,7 +404,7 @@ form {
   <div class="line-controls">
     <div class="fila0">
       <label>Texto Línea 3:</label>
-      <input type="text" name="linea3" value="<?= htmlspecialchars($plantilla["content"] ? json_decode($plantilla["content"], true)["linea3"] : "") ?>" id="linea_input_3" value="Leg. Num: 000000" oninput="updatePreview()">
+      <input type="text" name="linea3" id="linea_input_3" value="<?= htmlspecialchars($content_data['linea3'] ?? 'Leg. Num: 000000') ?>" oninput="updatePreview()">
     </div>
     
     <div class="fila1">
@@ -492,7 +442,7 @@ form {
 </select>
       <button type="button" onclick="document.querySelector('[name=negrita3]').checked = !document.querySelector('[name=negrita3]').checked; updatePreview();"><b>B</b></button>
       
-      <input type="number" name="tamano3" value="<?= $plantilla["tamano_linea_3"] ?>" id="tamano3" value="20" min="8" max="100" onchange="updatePreview()" style="width: 60px;">
+      <input type="number" name="tamano3" id="tamano3" value="<?= $plantilla['tamano_linea_3'] ?? 20 ?>" min="8" max="100" onchange="updatePreview()" style="width: 60px;">
     <div class="alineacion-btns" data-linea="3">
       <button type="button" onclick="setAlign(3, 'left', this)">🡸</button>
       <button type="button" onclick="setAlign(3, 'center', this)" class="active">🡺🡸</button>
@@ -502,7 +452,7 @@ form {
 <button type="button" onclick="cambiarMargen(3, 5)">➕</button></div>
     
       
-      <input type="checkbox" name="negrita3" <?= $plantilla["bold_linea_3"] ? "checked" : "" ?> style="display:none">
+      <input type="checkbox" name="negrita3" <?= !empty($plantilla['bold_linea_3']) ? 'checked' : '' ?> style="display:none">
     </div>
     
     
@@ -512,7 +462,7 @@ form {
   <div class="line-controls">
     <div class="fila0">
       <label>Texto Línea 4:</label>
-      <input type="text" name="linea4" value="<?= htmlspecialchars($plantilla["content"] ? json_decode($plantilla["content"], true)["linea4"] : "") ?>" id="linea_input_4" value="Colegio Nacional B. Mitre" oninput="updatePreview()">
+      <input type="text" name="linea4" id="linea_input_4" value="<?= htmlspecialchars($content_data['linea4'] ?? 'Colegio Nacional B. Mitre') ?>" oninput="updatePreview()">
     </div>
     
     <div class="fila1">
@@ -550,7 +500,7 @@ form {
 </select>
       <button type="button" onclick="document.querySelector('[name=negrita4]').checked = !document.querySelector('[name=negrita4]').checked; updatePreview();"><b>B</b></button>
       
-      <input type="number" name="tamano4" value="<?= $plantilla["tamano_linea_4"] ?>" id="tamano4" value="20" min="8" max="100" onchange="updatePreview()" style="width: 60px;">
+      <input type="number" name="tamano4" id="tamano4" value="<?= $plantilla['tamano_linea_4'] ?? 20 ?>" min="8" max="100" onchange="updatePreview()" style="width: 60px;">
     <div class="alineacion-btns" data-linea="4">
       <button type="button" onclick="setAlign(4, 'left', this)">🡸</button>
       <button type="button" onclick="setAlign(4, 'center', this)" class="active">🡺🡸</button>
@@ -560,7 +510,7 @@ form {
 <button type="button" onclick="cambiarMargen(4, 5)">➕</button></div>
     
       
-      <input type="checkbox" name="negrita4" <?= $plantilla["bold_linea_4"] ? "checked" : "" ?> style="display:none">
+      <input type="checkbox" name="negrita4" <?= !empty($plantilla['bold_linea_4']) ? 'checked' : '' ?> style="display:none">
     </div>
     
     
