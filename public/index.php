@@ -349,6 +349,19 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
         background-color: #4CAF50;
         color: white;
     }
+    .hidden-text-input {
+        display: none;
+    }
+
+    /* Ocultar el select de "Fuente:" */
+    .line-controls select[name^="fuente"] {
+        display: none;
+    }
+
+    /* Ocultar la etiqueta "Fuente:" */
+    .tab-content .line-controls label:nth-of-type(2) {
+        display: none;
+    }
 </style>
 </head>
 <body>
@@ -471,12 +484,15 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
   $plantilla_base = $stmt->fetch(PDO::FETCH_ASSOC);
   if (!$plantilla_base) die("Plantilla no encontrada.");
 
+  // Decodificar el contenido original de la plantilla
+  $contenido_base = json_decode($plantilla_base['content'], true);
+
   // 3. Recuperar texto del usuario (asumiendo que viene de Step 2)
   $lineas_texto = [
-      1 => $_GET['linea1'] ?? '',
-      2 => $_GET['linea2'] ?? '',
-      3 => $_GET['linea3'] ?? '',
-      4 => $_GET['linea4'] ?? ''
+      1 => $_GET['linea1'] ?? ($contenido_base['linea1'] ?? ''),
+      2 => $_GET['linea2'] ?? ($contenido_base['linea2'] ?? ''),
+      3 => $_GET['linea3'] ?? ($contenido_base['linea3'] ?? ''),
+      4 => $_GET['linea4'] ?? ($contenido_base['linea4'] ?? '')
   ];
 
   // Preparar datos iniciales para la vista previa y JavaScript
@@ -551,10 +567,12 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
             ?>
             <div class="tab-content <?= $i == 1 ? 'active' : '' ?>" id="tab<?= $i ?>">
                 <div class="line-controls">
-                    <label>Texto:</label>
-                    <input type="text" name="linea<?= $i ?>_texto_editor" value="<?= htmlspecialchars($lineas_texto[$i] ?? '') ?>">
+                    <div class="hidden-text-input">
+                        <label>Texto:</label>
+                        <input type="text" name="linea<?= $i ?>_texto_editor" value="<?= htmlspecialchars($lineas_texto[$i] ?? '') ?>">
+                    </div>
                     
-                    <label>Fuente:</label>
+                    <label class="hide-font-label">Fuente:</label>
                     <?php include '../admin/includes/_font_selector.php'; ?>
 
                     <label>Tamaño:</label>
@@ -582,11 +600,6 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
 
         <div class="preview-col">
             <div id="editor-preview-container" style="transform: scale(0.8); transform-origin: center;">
-                <?php
-                    // Pasar los datos iniciales a la plantilla de vista previa
-                    $plantilla = $initial_template_data;
-                    include '../admin/includes/_plantilla_preview.php';
-                ?>
             </div>
         </div>
     </div>
@@ -855,23 +868,43 @@ document.addEventListener('DOMContentLoaded', () => {
             // Start with the initial data provided by PHP
             const datosParaRender = JSON.parse(JSON.stringify(window.initialTemplateData)); // Deep copy
 
-            // Apply global overrides
+            // Asegurarse de que la estructura HTML básica exista en el previewContainer
+            if (previewContainer.innerHTML.trim() === '') {
+                previewContainer.innerHTML = `
+                    <div class="plantilla-preview-container">
+                        <div class="plantilla-linea plantilla-linea-1"></div>
+                        <div class="plantilla-linea plantilla-linea-2"></div>
+                        <div class="plantilla-linea plantilla-linea-3"></div>
+                        <div class="plantilla-linea plantilla-linea-4"></div>
+                    </div>
+                `;
+            }
+
+            // Aplicar valores de los controles por línea
             for (let i = 1; i <= 4; i++) {
-                // Ensure the line exists in datosParaRender before trying to set properties
                 if (datosParaRender[`linea${i}`]) {
-                    datosParaRender[`linea${i}`].tamano = currentGlobalFontSize;
-                    datosParaRender[`linea${i}`].negrita = currentGlobalBold;
+                    const textoEditorInput = form.querySelector(`[name="linea${i}_texto_editor"]`);
+                    const fuenteSelect = form.querySelector(`[name="fuente${i}"]`);
+                    const tamanoInput = form.querySelector(`[name="tamano${i}"]`);
+                    const negritaCheckbox = form.querySelector(`[name="negrita${i}"]`);
+                    const alineacionInput = form.querySelector(`[name="alineacion${i}"]`);
+                    const margenTopInput = form.querySelector(`[name="margen_top${i}"]`);
+                    const mayusculaCheckbox = form.querySelector(`[name="mayuscula${i}"]`);
+
+                    datosParaRender[`linea${i}`].texto = textoEditorInput ? textoEditorInput.value : '';
+                    datosParaRender[`linea${i}`].fuente = fuenteSelect ? fuenteSelect.value : datosParaRender[`linea${i}`].fuente; // Mantener la fuente inicial si no hay selector
+                    datosParaRender[`linea${i}`].tamano = tamanoInput ? parseInt(tamanoInput.value) : datosParaRender[`linea${i}`].tamano;
+                    datosParaRender[`linea${i}`].negrita = negritaCheckbox ? negritaCheckbox.checked : datosParaRender[`linea${i}`].negrita;
+                    datosParaRender[`linea${i}`].alineacion = alineacionInput ? alineacionInput.value : datosParaRender[`linea${i}`].alineacion;
+                    datosParaRender[`linea${i}`].margen = margenTopInput ? parseInt(margenTopInput.value) : datosParaRender[`linea${i}`].margen;
+                    datosParaRender[`linea${i}`].mayuscula = mayusculaCheckbox ? mayusculaCheckbox.checked : datosParaRender[`linea${i}`].mayuscula;
                 }
             }
-            datosParaRender.global_line_spacing = currentGlobalLineSpacing;
+            // No hay global_line_spacing si no hay un control global para ello.
+            // Se asume que el margen superior de cada línea es suficiente.
 
-            // Update display values
-            if (fontSizeValueSpan) {
-                fontSizeValueSpan.textContent = `${currentGlobalFontSize}px`;
-            }
-            if (lineSpacingValueSpan) {
-                lineSpacingValueSpan.textContent = currentGlobalLineSpacing;
-            }
+            // No hay elementos para actualizar valores globales si no existen.
+            // Se eliminan las referencias a fontSizeValueSpan y lineSpacingValueSpan.
 
             window.renderizarPlantilla(previewContainer, datosParaRender);
         };
@@ -888,7 +921,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Initial render
-        window.actualizarVistaPreviaEditor();
+        setTimeout(window.actualizarVistaPreviaEditor, 50);
     }
 });
 
