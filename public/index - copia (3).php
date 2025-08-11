@@ -263,7 +263,6 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
         display: flex;
         gap: 5px;
         margin-bottom: 15px;
-        justify-content: center; /* Centrar los botones de pestaña */
     }
     .tab-btn {
         padding: 8px 12px;
@@ -350,7 +349,9 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
         background-color: #4CAF50;
         color: white;
     }
-    
+    .hidden-text-input {
+        display: none;
+    }
 
     /* Ocultar el select de "Fuente:" */
     .line-controls select[name^="fuente"] {
@@ -368,7 +369,6 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
         flex-wrap: wrap;
         gap: 8px;
         align-items: center;
-        justify-content: center; /* Centrado horizontal */
         border: 1px solid #ddd;
         padding: 8px;
         border-radius: 8px;
@@ -395,7 +395,6 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
     }
     .toolbar .alineacion-btns button {
         padding: 8px 10px;
-        line-height: 1; /* Añadido para consistencia vertical */
     }
     .toolbar .checkbox-label {
         display: flex;
@@ -604,9 +603,13 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
 
 <h2 class="titulo">3. Personalizá tu diseño</h2>
 
-<form method="post" action="index.php?u=<?= htmlspecialchars($link_code) ?>&step=4">
+<form method="post" action="submit_order.php">
+    <input type="hidden" name="u" value="<?= htmlspecialchars($link_code) ?>">
     <input type="hidden" name="model_id" value="<?= htmlspecialchars($model_id) ?>">
     <input type="hidden" name="template_id" value="<?= htmlspecialchars($template_id) ?>">
+    <?php foreach ($lineas_texto as $num => $texto): ?>
+        <input type="hidden" name="linea<?= $num ?>" value="<?= htmlspecialchars($texto) ?>">
+    <?php endforeach; ?>
 
     <div class="editor-wrapper">
         <div class="controles-col">
@@ -622,11 +625,11 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
                 $selected_font = $plantilla_base["fuente_linea_$i"];
             ?>
             <div class="tab-content <?= $i == 1 ? 'active' : '' ?>" id="tab<?= $i ?>">
-                <div class="form-group" style="margin-bottom: 10px;">
-                    <label for="linea<?= $i ?>_texto_editor" style="font-weight: bold; display: block; margin-bottom: 5px;">Texto de la línea:</label>
-                    <input type="text" id="linea<?= $i ?>_texto_editor" name="linea<?= $i ?>_texto_editor" value="<?= htmlspecialchars($lineas_texto[$i] ?? '') ?>">
-                </div>
                 <div class="line-controls toolbar">
+                    <div class="hidden-text-input">
+                        <label>Texto:</label>
+                        <input type="text" name="linea<?= $i ?>_texto_editor" value="<?= htmlspecialchars($lineas_texto[$i] ?? '') ?>">
+                    </div>
                     
                     <div class="toolbar-group">
                         <?php include '../admin/includes/_font_selector.php'; ?>
@@ -644,9 +647,9 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
                     <div class="toolbar-divider"></div>
 
                     <div class="toolbar-group">
-                        <button type="button" class="btn-margin-top" onclick="changeMarginTop(<?= $i ?>, -2)"><i class="fas fa-arrow-up"></i></button>
+                        <button type="button" class="btn-margin-top" onclick="changeMarginTop(<?= $i ?>, -1)"><i class="fas fa-arrow-down"></i></button>
                         <span class="current-font-size" id="margen_top_display_<?= $i ?>"><?= $plantilla_base["margen_top_linea_$i"] ?>px</span>
-                        <button type="button" class="btn-margin-top" onclick="changeMarginTop(<?= $i ?>, 2)"><i class="fas fa-arrow-down"></i></button>
+                        <button type="button" class="btn-margin-top" onclick="changeMarginTop(<?= $i ?>, 1)"><i class="fas fa-arrow-up"></i></button>
                         <input type="hidden" name="margen_top<?= $i ?>" id="margen_top<?= $i ?>" value="<?= $plantilla_base["margen_top_linea_$i"] ?>">
                     </div>
 
@@ -671,6 +674,7 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
             </div>
             <?php endfor; ?>
             
+            <button type="submit">Finalizar y Pedir</button>
         </div>
 
         <div class="preview-col">
@@ -678,7 +682,6 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
             </div>
         </div>
     </div>
-    <button type="submit" class="boton-siguiente active" style="margin-top: 25px;">Siguiente</button>
 </form>
 
 <script>
@@ -789,48 +792,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-<?php elseif ($step == 4):
-    // Recoger todos los datos de personalización del paso 3
-    $custom_data = array_merge($_GET, $_POST);
-?>
-<h2 class="titulo">4. Ingresá tus datos para finalizar</h2>
-<form method="post" action="submit_order.php">
-    <?php
-    // Reenviar todos los datos personalizados como campos ocultos
-    foreach ($custom_data as $key => $value) {
-        if ($key !== 'step') { // No reenviar el 'step' para evitar confusiones
-             echo '<input type="hidden" name="' . htmlspecialchars($key) . '" value="' . htmlspecialchars($value) . '">' . "\n";
-        }
-    }
-    ?>
-
-    <div class="form-container">
-        <div style="display: flex; gap: 20px; margin-bottom: 10px;">
-            <div style="flex: 1;">
-                <label for="name" style="display:block; margin-bottom:5px;">Nombre</label>
-                <input type="text" id="name" name="name" required>
-            </div>
-            <div style="flex: 1;">
-                <label for="lastname" style="display:block; margin-bottom:5px;">Apellido</label>
-                <input type="text" id="lastname" name="lastname" required>
-            </div>
-        </div>
-        <div style="margin-bottom: 10px;">
-            <label for="email" style="display:block; margin-bottom:5px;">Email</label>
-            <input type="email" id="email" name="email" required>
-        </div>
-        <div style="margin-bottom: 10px;">
-            <label for="phone" style="display:block; margin-bottom:5px;">Teléfono</label>
-            <input type="tel" id="phone" name="phone" required>
-        </div>
-        <div>
-            <label for="address" style="display:block; margin-bottom:5px;">Dirección</label>
-            <input type="text" id="address" name="address" required>
-        </div>
-    </div>
-
-    <button type="submit" class="boton-siguiente active">Finalizar y Pedir</button>
-</form>
 <?php endif; ?>
 
 </div>
@@ -874,12 +835,11 @@ function seleccionarPlantilla(el, templateId) {
         const lineaData = templateData[`linea${i}`];
 
         if (inputElement && lineaData) {
-            if (inputElement.value.trim() === '') {
-                inputElement.value = lineaData.texto || '';
-            }
+            inputElement.value = lineaData.texto || ''; // Actualizar el valor del input
         }
         if (checkboxElement && lineaData) {
-            checkboxElement.checked = !!inputElement.value.trim(); // <--- MODIFIED THIS LINE
+            // Si la línea tiene texto, marcar el checkbox. Si no, desmarcarlo.
+            checkboxElement.checked = !!lineaData.texto;
         }
     }
 

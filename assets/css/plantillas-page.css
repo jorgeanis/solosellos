@@ -1,0 +1,205 @@
+/* assets/css/plantillas-page.css */
+
+.grid-plantillas {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.plantilla-card {
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    padding: 0 10px 10px 10px; /* Top 0, Right 10px, Bottom 10px, Left 10px */
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.08);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.plantilla-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 12px rgba(0,0,0,0.12);
+}
+
+.plantilla-preview-scale-wrapper {
+    margin-bottom: 2px; /* Reducido aún más */
+}
+
+.titulo h4 {
+    margin: 2px 0; /* Reducido aún más */
+    font-size: 1.1em;
+    font-weight: 600;
+}
+
+.acciones {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    justify-content: center;
+}
+
+.acciones a {
+    text-decoration: none;
+    padding: 6px 12px; 
+    border-radius: 5px;
+    background-color: #f0f0f0;
+    color: #333;
+    font-size: 0.9em;
+    transition: background-color 0.2s;
+    text-align: center;
+    border-radius: 6px;
+    border: 1px solid #ccc; 
+    display: flex; 
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap; 
+
+    /* Nuevos estilos para el efecto de expansión */
+    width: 40px; /* Ancho inicial solo para el icono */
+    overflow: hidden; /* Oculta el texto inicialmente */
+    transition: width 0.3s ease, background-color 0.2s ease;
+}
+
+.acciones a .icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px; /* Ancho fijo para el icono */
+    flex-shrink: 0; /* Evita que el icono se encoja */
+}
+
+.acciones a .text {
+    margin-left: 0; /* Elimina el margen cuando está oculto */
+    width: 0; /* No ocupa espacio */
+    overflow: hidden; /* Asegura que no se vea nada */
+    opacity: 0; /* Oculta el texto inicialmente */
+    transition: opacity 0.3s ease, width 0.3s ease, margin-left 0.3s ease;
+}
+
+.acciones a:hover .text {
+    margin-left: 5px; /* Añade el margen al mostrar */
+    width: auto; /* Permite que ocupe su ancho natural */
+    opacity: 1; /* Muestra el texto al pasar el mouse */
+}
+
+.acciones a:hover {
+    width: auto; /* Expande el ancho al pasar el mouse */
+    padding: 6px 12px; /* Ajusta el padding para el texto */
+    background-color: #e0e0e0;
+}
+
+.acciones a:hover .text {
+    opacity: 1; /* Muestra el texto al pasar el mouse */
+}
+
+/* Colores específicos para los botones de acción */
+.acciones a[href*="editar_plantilla"] {
+    background: #cce5ff; 
+    border-color: #99ccff; 
+}
+.acciones a[href*="duplicar_plantilla"] {
+    background: #d4edda; 
+    border-color: #a5d6a7; 
+}
+.acciones a[href*="eliminar_plantilla"] {
+    background: #f8d7da; 
+    border-color: #f5c6cb; 
+}
+
+.tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px; /* Aumentado el espacio entre botones */
+    align-items: center; /* Alinea verticalmente los elementos */
+    width: 100%; /* Asegura que ocupe todo el ancho */
+}
+
+.tab-btn {
+    padding: 10px 15px;
+    border: none;
+    background: #e0e0e0;
+    cursor: pointer;
+    border-radius: 5px;
+    flex-shrink: 0;
+    max-width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: black; /* Texto negro en estado de reposo */
+}
+
+.tabs-container {
+    display: flex;
+    justify-content: flex-start; /* Alinea los elementos al inicio */
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+    width: 100%; /* Asegura que ocupe todo el ancho */
+}
+
+.fab-container {
+    position: fixed;
+    bottom: 25px;
+    right: 25px;
+    display: flex;
+    gap: 15px; /* Espacio entre los botones flotantes */
+    z-index: 999; /* Asegura que estén por encima de otros elementos */
+}
+
+.boton-flotante {
+    background-color: #3f51b5;
+    color: white;
+    width: 60px; /* Ancho inicial para el icono */
+    height: 60px;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 60px;
+    font-size: 32px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    text-decoration: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+    overflow: hidden; /* Oculta el texto inicialmente */
+    transition: width 0.3s ease, background-color 0.3s ease, border-radius 0.3s ease;
+}
+
+.boton-flotante .icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px; /* Ancho fijo para el icono */
+    flex-shrink: 0;
+}
+
+.boton-flotante .text {
+    margin-left: 0; /* Elimina el margen cuando está oculto */
+    width: 0; /* No ocupa espacio */
+    overflow: hidden; /* Asegura que no se vea nada */
+    opacity: 0; /* Oculta el texto inicialmente */
+    white-space: nowrap; /* Evita que el texto se rompa */
+    font-size: 16px; /* Tamaño de fuente para el texto */
+    transition: opacity 0.3s ease, width 0.3s ease, margin-left 0.3s ease;
+}
+
+.boton-flotante:hover {
+    background-color: #303f9f;
+    width: auto; /* Expande el ancho al pasar el mouse */
+    padding: 0 20px; /* Ajusta el padding para el texto */
+    border-radius: 30px; /* Hace el botón más ovalado al expandirse */
+}
+
+.boton-flotante:hover .icon {
+    width: auto; /* Permite que el icono se ajuste */
+}
+
+.boton-flotante:hover .text {
+    margin-left: 10px; /* Añade el margen al mostrar */
+    width: auto; /* Permite que ocupe su ancho natural */
+    opacity: 1; /* Muestra el texto al pasar el mouse */
+}

@@ -1,0 +1,14 @@
+<p>Personalizá la <strong>Línea <?= $i ?></strong>:</p>                                                               <input type="hidden" name="linea<?= $i ?>_texto" value="<?= htmlspecialchars($lineas_texto[$i]) ?>">                  
+<div class="line-controls">                                                                       
+<label>Fuente:</label>                                                                        
+<?php include '../admin/includes/_font_selector.php'; ?>                                                           
+<label>Tamaño:</label>                                                                        
+<div class="font-size-control">                                                               
+<button type="button" class="btn-font-size" data-action="decrease" data-line="<?= $i ?>"><i class="fas fa-minus"></i></button>                                                                                                  
+<input type="hidden" name="tamano<?= $i ?>" value="<?= $plantilla_base["tamano_linea_$i"] ?>">
+<span class="current-font-size" id="current_font_size_<?= $i ?>"><?= $plantilla_base["tamano_linea_$i"] ?>px</span>  <button type="button" class="btn-font-size" data-action="increase" data-line="<?= $i ?>"><i class="fas fa-plus"></i  ></button></div><label>Margen Superior:</label>                                                                       <input type="number" name="margen_top<?= $i ?>" value="<?= $plantilla_base["margen_top_linea_$i"] ?>">                
+<label>Alineación:</label>                                                                                            
+<input type="hidden" name="alineacion<?= $i ?>" id="alineacion<?= $i ?>" value="<?= $plantilla_base["alineacion_linea_$i"] ?>">                                                                                          
+<div class="alineacion-btns" data-linea="<?= $i ?>">                                                                  
+<button type="button" onclick="setAlign(<?= $i ?>, 'left', this)">Izquierda</button>                                 <button type="button" onclick="setAlign(<?= $i ?>, 'center', this)">Centro</button>                                  
+<button type="button" onclick="setAlign(<?= $i ?>, 'right', this)">Derecha</button>                                  </div>                                                                                                                <label><input type="checkbox" name="negrita<?= $i ?>" <?= !empty($plantilla_base["bold_linea_$i"]) ? "checked" : "" ?>>Negrita</label>

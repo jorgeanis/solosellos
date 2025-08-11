@@ -1,4 +1,3 @@
-
 <?php
 require_once '../admin/includes/db.php';
 
@@ -6,27 +5,16 @@ $order_code = $_GET['order'] ?? null;
 $link_code = $_GET['u'] ?? null;
 
 if (!$order_code || !$link_code) {
-    echo "Pedido no válido.";
-    exit;
+    die("Pedido no válido.");
 }
 
+// 1. OBTENER DATOS COMPLETOS DEL PEDIDO Y DEL USUARIO
 $stmt = $pdo->prepare("
     SELECT o.*, 
-           u.name AS admin_name,
-           u.email AS admin_email,
-           u.logo AS admin_logo,
-           u.footer AS admin_footer,
-           u.whatsapp AS admin_whatsapp,
-           u.color_primary AS color,
-           u.color_secundary AS color_secundary,
-           m.title AS model_title,
-           m.description AS model_description,
-           m.image AS model_image,
-           t.fuente_linea_1, t.fuente_linea_2, t.fuente_linea_3, t.fuente_linea_4,
-           t.tamano_linea_1, t.tamano_linea_2, t.tamano_linea_3, t.tamano_linea_4,
-           t.bold_linea_1, t.bold_linea_2, t.bold_linea_3, t.bold_linea_4,
-           t.alineacion_linea_1, t.alineacion_linea_2, t.alineacion_linea_3, t.alineacion_linea_4,
-           t.margen_top_linea_1, t.margen_top_linea_2, t.margen_top_linea_3, t.margen_top_linea_4
+           u.name AS admin_name, u.email AS admin_email, u.logo AS admin_logo,
+           u.footer AS admin_footer, u.whatsapp AS admin_whatsapp, u.color_primary AS color,
+           m.title AS model_title, m.description AS model_description, m.image AS model_image,
+           t.nombre AS template_name
     FROM orders o
     JOIN users u ON o.user_id = u.id
     JOIN templates t ON o.template_id = t.id
@@ -34,333 +22,268 @@ $stmt = $pdo->prepare("
     WHERE o.order_code = ? AND u.link_code = ?
 ");
 $stmt->execute([$order_code, $link_code]);
-$order = $stmt->fetch();
+$order = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$order) {
-    echo "Pedido no encontrado.";
-    exit;
+    die("Pedido no encontrado.");
 }
 
-$badgeClass = match($estado) {
-    'Recibido' => 'badge-gray',
-    'Confirmado' => 'badge-blue',
-    'En Producción' => 'badge-yellow',
-    'Cancelado' => 'badge-red',
-    'Entregado' => 'badge-green',
-    default => 'badge-gray'
-};
+// 2. DECODIFICAR ESTILOS Y PREPARAR DATOS PARA EL RENDERIZADOR
+$custom_styles = json_decode($order['styles'], true);
 
-$color = $order['color'] ?? '#009688';
+$plantilla_data = [
+    'id' => $order['template_id'],
+    'nombre' => $order['template_name']
+];
 
-$fonts = [];
 for ($i = 1; $i <= 4; $i++) {
-    $fuente = $order["fuente_linea_$i"];
-    if (!in_array($fuente, $fonts)) {
-        $fonts[] = $fuente;
+    $plantilla_data["linea$i"] = [
+        'texto' => $order["text_line$i"],
+        'fuente' => $custom_styles['fuente'][$i-1] ?? 'Arial',
+        'tamano' => $custom_styles['tamano'][$i-1] ?? '16',
+        'negrita' => $custom_styles['bold'][$i-1] ?? false,
+        'alineacion' => $custom_styles['alineacion'][$i-1] ?? 'center',
+        'margen' => $custom_styles['margen_top'][$i-1] ?? '0',
+        'mayuscula' => $custom_styles['mayuscula'][$i-1] ?? false
+    ];
+}
+
+
+// 3. PREPARAR Y CARGAR LAS FUENTES DE GOOGLE DE FORMA EFICIENTE
+$fonts_to_load = [];
+if (isset($custom_styles['fuente']) && is_array($custom_styles['fuente'])) {
+    foreach ($custom_styles['fuente'] as $font) {
+        if (!empty($font)) {
+            $fonts_to_load[] = $font;
+        }
     }
+}
+$fonts_to_load = array_unique($fonts_to_load);
+
+$google_fonts_url = '';
+if (!empty($fonts_to_load)) {
+    $font_families = [];
+    foreach ($fonts_to_load as $font) {
+        $font_families[] = 'family=' . urlencode($font) . ':wght@400;700';
+    }
+    $google_fonts_url = 'https://fonts.googleapis.com/css2?' . implode('&', $font_families) . '&display=swap';
 }
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Resumen del Pedido</title>
+    <title>¡Gracias por tu pedido!</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <?php foreach ($fonts as $font): ?>
-        <link href="https://fonts.googleapis.com/css2?family=<?= str_replace(' ', '+', $font) ?>:wght@400;700&display=swap" rel="stylesheet">
-    <?php endforeach; ?>
+
+    <?php if (!empty($google_fonts_url)): ?>
+        <link href="<?= $google_fonts_url ?>" rel="stylesheet">
+    <?php endif; ?>
+
+    <link rel="stylesheet" href="../assets/css/plantilla-preview.css">
+
     <style>
-
-header {
-    background-color: #fff;
-    padding: 20px;
-    border-bottom: 1px solid #ddd;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-}
-.header-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 15px;
-}
-.header-logo img {
-    height: 60px;
-    border-radius: 6px;
-}
-.header-info {
-    text-align: right;
-}
-.header-info h1 {
-    font-size: 18px;
-    margin: 0;
-}
-.header-info p {
-    font-size: 14px;
-    margin: 0;
-    color: #666;
-}
-
         :root {
-            --color-secundario: <?= $order['color_secundary'] ?? '#555' ?>;
-            --color-primario: <?= $color ?>;
-        }
-        * {
-            box-sizing: border-box;
+            --color-principal: <?= htmlspecialchars($order['color'] ?? '#009688') ?>;
         }
         body {
             margin: 0;
-            font-family: Arial, sans-serif;
-            background: #f9f9f9;
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f0f2f5;
             color: #333;
-        }
-        a.whatsapp-button {
-        background-color: #25D366;
-        color: white;
-        padding: 12px 20px;
-        border-radius: 6px;
-        text-decoration: none;
-        font-weight: bold;
-        display: inline-block;
-        transition: background-color 0.3s;
-    }
-
-    a.whatsapp-button:hover {
-        background-color: #1DA851;
-    }
-
-    footer {
-            background: var(--color-secundario); color: #fff;
-            background: #fff;
-            padding: 15px 20px;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-        }
-        .admin-
-        .admin-logo {
-            max-height: 60px;
-        }
-        .admin-info {
-            text-align: right;
-			
-        }
-        .admin-info h1 {
-            margin: 0;
-            font-size: 18px;
-			color: #000000;
-        }
-        .admin-info p {
-            margin: 0;
-            font-size: 13px;
-            color: #666;
+            line-height: 1.6;
         }
         .container {
-            max-width: 1000px;
-            margin: 0 auto;
+            max-width: 650px;
+            margin: 30px auto;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            overflow: hidden;
+            border: 1px solid #e0e0e0;
+        }
+        .card-header {
+            background-color: var(--color-principal);
+            color: white;
             padding: 30px 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        .card-header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .card-body {
+            padding: 30px;
+
+        }
+        .preview-section {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px dashed #e0e0e0;
+            /* Flexbox para centrar el contenido transformado */
             display: flex;
             flex-direction: column;
+            align-items: center;
+        }
+        .preview-section h3 {
+            margin-top: 0;
+            color: #555;
+            font-weight: 600;
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+        .plantilla-preview-wrapper {
+            position: relative;
+            width: 380px;
+            height: 140px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fff;
+            transform: scale(0.7); /* Ajustado para mejor visibilidad */
+            /* margin: 0 auto; ya no es necesario */
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Adaptable */
             gap: 20px;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px dashed #e0e0e0;
         }
-        .section {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            overflow: hidden;
-        }
-		.section2 {
-            background: white;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-        .section-title {
-  background: #e1f5fe;
-  padding: 12px 18px;
-  font-family: 'Roboto', sans-serif;
-  font-weight: 600;
-  font-size: 18px;
-  border-radius: 10px 10px 0 0;
-  color: #01579b;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-}
-        .section-content {
-  font-family: 'Roboto', sans-serif;
-  font-size: 15px;
-  line-height: 1.6;
-  color: #444;
-  background: #fff;
-  border-radius: 0 0 10px 10px;
-  padding: 20px;
-  margin-bottom: 25px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-}
-.preview {
-    transform: scale(0.8);
-    transform-origin: top center;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-}
-        .linea-prev {
-            white-space: nowrap;
-            width: 100%;
-            margin-bottom: 5px;
-            line-height: 1;
-        }
-        .modelo img {
-            width: 100%;
-            height: auto;
+        .info-item {
+            background-color: #f9f9f9;
+            padding: 15px;
             border-radius: 8px;
-            margin-bottom: 10px;
+            border: 1px solid #eee;
         }
-        a.whatsapp-button {
-        background-color: #08A61F;
-        color: white;
-        padding: 12px 20px;
-        border-radius: 6px;
-        text-decoration: none;
-        font-weight: bold;
-        display: inline-block;
-        transition: background-color 0.3s;
-    }
-
-    a.whatsapp-button:hover {
-        background-color: #1DA851;
-    }
-
-    footer {
-            background: var(--color-secundario); color: #fff;
-            font-size: 13px;
+        .info-item strong {
+            display: block;
+            color: var(--color-principal); /* Color principal para los títulos */
+            margin-bottom: 5px;
+            font-size: 15px;
+        }
+        .model-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .model-info img {
+            width: 50px; /* Tamaño pequeño para la imagen del modelo */
+            height: 50px;
+            object-fit: contain; /* Para que la imagen no se corte */
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            padding: 3px;
+            background-color: #fff;
+        }
+        .whatsapp-button {
+            display: block; /* Ocupar todo el ancho */
+            background-color: #25D366;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px; /* Más redondeado */
+            text-decoration: none;
+            font-weight: bold;
             text-align: center;
-            color: #FFFFFF;
+            margin-top: 30px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            font-size: 18px;
+            box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
         }
-        @media (min-width: 768px) {
-            .container {
-                flex-direction: row;
-                flex-wrap: wrap;
-                justify-content: space-between;
-            }
-            .section {
-                flex: 1 1 30%;
-            }
+        .whatsapp-button:hover {
+            background-color: #1DA851;
+            transform: translateY(-2px);
         }
-    
-.badge {
-  display: inline-block;
-  padding: 4px 10px;
-  font-size: 13px;
-  border-radius: 20px;
-  font-weight: bold;
-  color: white;
-}
-.badge-gray    { background-color: #9e9e9e; }
-.badge-blue    { background-color: #2196f3; }
-.badge-yellow  { background-color: #fbc02d; color: #000; }
-.badge-red     { background-color: #f44336; }
-.badge-green   { background-color: #4caf50; }
-
-</style>
+        
+    </style>
 </head>
 <body>
-    
 
-    
-
-<header>
-    <div class="header-content">
-        <div class="header-logo">
-            <img src="../assets/images/<?= htmlspecialchars($order['admin_logo']) ?>" alt="Logo">
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <h1>¡Gracias por tu pedido!</h1>
         </div>
-        <div class="header-info">
-            <h1><?= htmlspecialchars($order['admin_name']) ?></h1>
-            <p><?= htmlspecialchars($order['admin_email']) ?></p>
-            <p><a href="https://wa.me/<?= preg_replace('/[^0-9]/', '', $order['admin_whatsapp']) ?>" target="_blank">📱 <?= htmlspecialchars($order['admin_whatsapp']) ?></a></p>
-        </div>
-    </div>
-</header>
+        <div class="card-body">
+            <p>Hemos recibido tu pedido correctamente. Nos pondremos en contacto contigo a la brevedad.</p>
 
-<main class="container">
-
-    <div class="section">
-        <div class="section-title">Detalle del pedido</div>
-        <div class="section-content">
-            <strong>Nombre:</strong> <?= htmlspecialchars($order["name"]) ?> <?= htmlspecialchars($order["lastname"]) ?><br>
-            <strong>Domicilio:</strong> <?= htmlspecialchars($order["address"]) ?><br>
-            <strong>Teléfono:</strong> <?= htmlspecialchars($order["phone"]) ?><br>
-            <strong>Email:</strong> <?= htmlspecialchars($order["email"]) ?><br>
-            <strong>Fecha:</strong> <?= date("d/m/Y H:i", strtotime($order["created_at"])) ?><br>
-        </div>
-    </div>
-
-    <div class="section">
-        <div class="section-title">Texto del sello</div>
-        <div class="section-content">
-            <div class="preview">
-                <?php for ($i = 1; $i <= 4; $i++): ?>
-                    <?php
-                        $text = htmlspecialchars($order["text_line$i"]);
-                        if (empty($text)) continue;
-                        $font = $order["fuente_linea_$i"];
-                        $size = $order["tamano_linea_$i"];
-                        $bold = $order["bold_linea_$i"] ? "bold" : "normal";
-                        $align = $order["alineacion_linea_$i"];
-                        $margen = (int)($order["margen_top_linea_$i"]);
+                <div class="preview-section">
+                
+                <div class="plantilla-preview-wrapper" 
+                     id="final-preview" 
+                     data-template-data='<?= htmlspecialchars(json_encode($plantilla_data), ENT_QUOTES, 'UTF-8') ?>'>
+                    <?php 
+                    // Pasamos la variable al scope del include
+                    $plantilla = $plantilla_data; 
+                    include '../admin/includes/_plantilla_preview.php'; 
                     ?>
-                    <div class="linea-prev" style="
-                        font-family: '<?= $font ?>', sans-serif;
-                        font-size: <?= $size ?>px;
-                        font-weight: <?= $bold ?>;
-                        text-align: <?= $align ?>;
-                        margin-top: <?= $margen ?>px;
-                        margin-bottom: 5px;
-                    "><?= $text ?></div>
-                <?php endfor; ?>
+                </div>
+            </div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <strong>Nombre:</strong> <?= htmlspecialchars($order["name"]) ?> <?= htmlspecialchars($order["lastname"]) ?>
+                </div>
+                <div class="info-item">
+                    <strong>Teléfono:</strong> <?= htmlspecialchars($order["phone"]) ?>
+                </div>
+                <div class="info-item">
+                    <strong>Dirección:</strong> <?= htmlspecialchars($order["address"]) ?>
+                </div>
+                <div class="info-item">
+                    <strong>Modelo:</strong> 
+                    <div class="model-info">
+                        <?php if (!empty($order['model_image'])): ?>
+                            <img src="../assets/images/<?= htmlspecialchars($order['model_image']) ?>" alt="<?= htmlspecialchars($order['model_title']) ?>" title="<?= htmlspecialchars($order['model_title']) ?>">
+                        <?php endif; ?>
+                        <span><?= htmlspecialchars($order['model_title']) ?></span>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <strong>Plantilla:</strong> <?= htmlspecialchars($order['template_name']) ?>
+                </div>
+            </div>
+
+            <div style="text-align: center;">
+                <a href="https://wa.me/<?= preg_replace('/[^0-9]/', '', $order['admin_whatsapp']) ?>?text=Hola!%20Acabo%20de%20realizar%20el%20pedido%20nro%20<?= $order['id'] ?>" 
+                   class="whatsapp-button" target="_blank">
+                   Contactar por WhatsApp
+                </a>
             </div>
         </div>
     </div>
+    
+</div>
 
-    <div class="section">
-        <div class="section-title">Modelo elegido</div>
-        <div class="section-content modelo">
-            <h4 style="margin: 10px 0; color: var(--color-secundario);"><?= htmlspecialchars($order['model_title']) ?></h4>
-            <img src="../assets/images/<?= htmlspecialchars($order['model_image']) ?>" alt="<?= htmlspecialchars($order['model_title']) ?>">
-            <p style="font-size: 14px; color: #555;"><?= htmlspecialchars($order['model_description']) ?></p>
-        </div>
-    </div>
-
-
-    <div class="section2" style="text-align: center; margin-top: 30px;">
-        <a href="https://wa.me/<?= preg_replace('/[^0-9]/', '', $order['admin_whatsapp']) ?>?text=Ya%20realice%20el%20pedido%20con%20el%20numero%20<?= $order['id'] ?>" 
-           class="whatsapp-button" target="_blank">
-           Volver al Whatsapp
-        </a>
-    </div>
-
-</main>
-
-
-    <footer>
-        <?= $order['admin_footer'] ?>
-    </footer>
-
-
-<!-- html2canvas para exportar el preview en alta calidad -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- JS del Renderizador -->
+<script src="../assets/js/plantilla-renderer.js"></script>
 <script>
-function descargarPNG() {
-  const preview = document.querySelector(".preview");
-  if (!preview) {
-    alert("No se encontró el preview.");
-    return;
-  }
-  html2canvas(preview, { scale: 3 }).then(canvas => {
-    const link = document.createElement('a');
-    link.download = 'sello.png';
-    link.href = canvas.toDataURL("image/png");
-    link.click();
-  });
-}
+document.addEventListener('DOMContentLoaded', () => {
+    const previewWrapper = document.getElementById('final-preview');
+    const templateDataAttr = previewWrapper.getAttribute('data-template-data');
+
+    if (templateDataAttr) {
+        try {
+            const templateData = JSON.parse(templateDataAttr);
+            console.log('Datos de la plantilla recibidos en JS:', templateData); // Añadido para depuración
+            const previewContainer = previewWrapper.querySelector('.plantilla-preview-container');
+            
+            if (previewContainer) {
+                // Usamos la función global para renderizar la vista previa
+                window.renderizarPlantilla(previewContainer, templateData);
+            }
+        } catch (e) {
+            console.error('Error al renderizar la vista previa final:', e);
+        }
+    }
+});
 </script>
-<script src="../assets/js/preview.js"></script>
 
 </body>
 </html>

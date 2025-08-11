@@ -1,0 +1,195 @@
+<?php
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+require_once 'includes/auth.php';
+require_once 'includes/db.php';
+
+// --- MANEJO DE FILTROS Y BÚSQUEDA ---
+$filtro = $_GET['estado'] ?? 'todos';
+$busqueda = $_GET['buscar'] ?? '';
+$fecha = $_GET['fecha'] ?? '';
+
+$params = [$_SESSION['user']['id']];
+$condiciones = "o.user_id = ?";
+
+if ($filtro !== 'todos') {
+    $condiciones .= " AND o.status = ?";
+    $params[] = $filtro;
+}
+if (!empty($fecha)) {
+    $condiciones .= " AND DATE(o.created_at) = ?";
+    $params[] = $fecha;
+}
+if (!empty($busqueda)) {
+    $condiciones .= " AND (o.name LIKE ? OR o.lastname LIKE ? OR o.text_line1 LIKE ? OR o.text_line2 LIKE ? OR o.text_line3 LIKE ? OR o.text_line4 LIKE ?)";
+    $searchTerm = "%{$busqueda}%";
+    for ($i = 0; $i < 6; $i++) $params[] = $searchTerm;
+}
+
+// --- CONSULTA PRINCIPAL ---
+$sql = "
+    SELECT 
+        o.*, 
+        u.whatsapp, u.link_code,
+        m.image AS model_image,
+        t.nombre AS template_name,
+        t.fuente_linea_1, t.tamano_linea_1, t.bold_linea_1, t.alineacion_linea_1, t.margen_top_linea_1,
+        t.fuente_linea_2, t.tamano_linea_2, t.bold_linea_2, t.alineacion_linea_2, t.margen_top_linea_2,
+        t.fuente_linea_3, t.tamano_linea_3, t.bold_linea_3, t.alineacion_linea_3, t.margen_top_linea_3,
+        t.fuente_linea_4, t.tamano_linea_4, t.bold_linea_4, t.alineacion_linea_4, t.margen_top_linea_4
+    FROM orders o
+    JOIN models m ON o.model_id = m.id
+    JOIN users u ON o.user_id = u.id
+    JOIN templates t ON o.template_id = t.id
+    WHERE $condiciones 
+    ORDER BY o.id DESC
+";
+$stmt = $pdo->prepare($sql);
+$stmt->execute($params);
+$orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// --- CARGA DE FUENTES ---
+$fonts_to_load = [];
+foreach ($orders as $order) {
+    for ($i = 1; $i <= 4; $i++) {
+        if (!empty($order["fuente_linea_$i"])) {
+            $fonts_to_load[] = $order["fuente_linea_$i"];
+        }
+    }
+}
+$fonts_to_load = array_unique($fonts_to_load);
+
+// --- MANEJO DE POST PARA ACTUALIZAR ESTADO ---
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['pedido_id'], $_POST['nuevo_estado'])) {
+    $stmt = $pdo->prepare("UPDATE orders SET status = ? WHERE id = ? AND user_id = ?");
+    $stmt->execute([$_POST['nuevo_estado'], $_POST['pedido_id'], $_SESSION['user']['id']]);
+    header("Location: pedidos.php?" . http_build_query($_GET));
+    exit;
+}
+
+require_once 'includes/header.php';
+?>
+
+<!-- CSS y Fuentes -->
+<link rel="stylesheet" href="../assets/css/plantilla-preview.css">
+<?php foreach ($fonts_to_load as $font): ?>
+<link href="https://fonts.googleapis.com/css2?family=<?= str_replace(' ', '+', $font) ?>&display=swap" rel="stylesheet">
+<?php endforeach; ?>
+
+<style>
+    /* Estilos para la página de pedidos (simplificados) */
+    .table-container { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 12px; border: 1px solid #ddd; text-align: left; vertical-align: middle; }
+    th { background-color: #f2f2f2; }
+    .preview-wrapper-container { 
+        transform: scale(0.6); 
+        transform-origin: top left; 
+        width: 316px; /* 190px / 0.6 */
+        height: 133px; /* 80px / 0.6 */
+    }
+    .link-icon { font-size: 24px; text-decoration: none; }
+</style>
+
+<h2>Pedidos Recibidos</h2>
+
+<!-- Formulario de filtros (simplificado para claridad) -->
+<form method="GET" style="margin-bottom: 20px; display: flex; gap: 15px; align-items: center;">
+    <select name="estado" onchange="this.form.submit()">
+        <option value="todos" <?= $filtro === 'todos' ? 'selected' : '' ?>>Todos</option>
+        <option value="En preparación" <?= $filtro === 'En preparación' ? 'selected' : '' ?>>En preparación</option>
+        <option value="Entregado" <?= $filtro === 'Entregado' ? 'selected' : '' ?>>Entregado</option>
+        <option value="Pagado" <?= $filtro === 'Pagado' ? 'selected' : '' ?>>Pagado</option>
+    </select>
+    <input type="text" name="buscar" placeholder="Buscar por nombre o texto..." value="<?= htmlspecialchars($busqueda) ?>">
+    <input type="date" name="fecha" value="<?= htmlspecialchars($fecha) ?>">
+    <button type="submit">Buscar</button>
+    <a href="pedidos.php">Limpiar</a>
+</form>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Cliente</th>
+                <th>Contacto</th>
+                <th>Modelo</th>
+                <th>Vista Previa del Sello</th>
+                <th>Estado</th>
+                <th>Fecha</th>
+                <th>Enlace</th>
+            </tr>
+        </thead>
+        <tbody>
+        <?php foreach ($orders as $order): ?>
+            <?php
+            // Preparar datos de la plantilla para el renderizador
+            $plantilla_data = [
+                'id' => $order['template_id'],
+                'linea1' => ['texto' => $order['text_line1'], 'fuente' => $order['fuente_linea_1'], 'tamano' => $order['tamano_linea_1'], 'negrita' => !empty($order['bold_linea_1']), 'alineacion' => $order['alineacion_linea_1'], 'margen' => $order['margen_top_linea_1']],
+                'linea2' => ['texto' => $order['text_line2'], 'fuente' => $order['fuente_linea_2'], 'tamano' => $order['tamano_linea_2'], 'negrita' => !empty($order['bold_linea_2']), 'alineacion' => $order['alineacion_linea_2'], 'margen' => $order['margen_top_linea_2']],
+                'linea3' => ['texto' => $order['text_line3'], 'fuente' => $order['fuente_linea_3'], 'tamano' => $order['tamano_linea_3'], 'negrita' => !empty($order['bold_linea_3']), 'alineacion' => $order['alineacion_linea_3'], 'margen' => $order['margen_top_linea_3']],
+                'linea4' => ['texto' => $order['text_line4'], 'fuente' => $order['fuente_linea_4'], 'tamano' => $order['tamano_linea_4'], 'negrita' => !empty($order['bold_linea_4']), 'alineacion' => $order['alineacion_linea_4'], 'margen' => $order['margen_top_linea_4']]
+            ];
+            ?>
+            <tr>
+                <td><?= $order['id'] ?></td>
+                <td><?= htmlspecialchars($order['name'] . ' ' . $order['lastname']) ?></td>
+                <td><a href="https://wa.me/<?= preg_replace('/[^0-9]/', '', $order['whatsapp']) ?>" target="_blank">📱</a></td>
+                <td><img src="../assets/images/<?= htmlspecialchars($order['model_image']) ?>" style="max-height: 50px;"></td>
+                <td>
+                    <div class="preview-wrapper-container">
+                        <div class="plantilla-preview-wrapper" 
+                             id="preview-order-<?= $order['id'] ?>"
+                             data-template-data='<?= htmlspecialchars(json_encode($plantilla_data), ENT_QUOTES, 'UTF-8') ?>'>
+                            <?php include 'includes/_plantilla_preview.php'; ?>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <form method="POST" style="margin:0;">
+                        <input type="hidden" name="pedido_id" value="<?= $order['id'] ?>">
+                        <select name="nuevo_estado" onchange="this.form.submit()">
+                            <option <?= $order['status'] === 'En preparación' ? 'selected' : '' ?>>En preparación</option>
+                            <option <?= $order['status'] === 'Entregado' ? 'selected' : '' ?>>Entregado</option>
+                            <option <?= $order['status'] === 'Pagado' ? 'selected' : '' ?>>Pagado</option>
+                        </select>
+                    </form>
+                </td>
+                <td><?= date('d/m/Y H:i', strtotime($order['created_at'])) ?></td>
+                <td>
+                    <a href="../public/thanks.php?order=<?= htmlspecialchars($order['order_code']) ?>&u=<?= htmlspecialchars($order['link_code']) ?>" 
+                       target="_blank" 
+                       class="link-icon" 
+                       title="Ver página de agradecimiento">🔗</a>
+                </td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+</div>
+
+<!-- JS del Renderizador -->
+<script src="../assets/js/plantilla-renderer.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Renderizar todas las vistas previas de los pedidos
+    document.querySelectorAll('.plantilla-preview-wrapper[data-template-data]').forEach(previewWrapper => {
+        const templateDataAttr = previewWrapper.getAttribute('data-template-data');
+        if (templateDataAttr) {
+            try {
+                const templateData = JSON.parse(templateDataAttr);
+                const previewContainer = previewWrapper.querySelector('.plantilla-preview-container');
+                if (previewContainer) {
+                    window.renderizarPlantilla(previewContainer, templateData);
+                }
+            } catch (e) {
+                console.error('Error al renderizar vista previa del pedido:', previewWrapper.id, e);
+            }
+        }
+    });
+});
+</script>
+
+<?php require_once 'includes/footer.php'; ?>

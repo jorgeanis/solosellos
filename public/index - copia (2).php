@@ -139,8 +139,8 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
     }
     .plantilla-preview-container-scaled {
         position: absolute;
-        top: 44%;
-        left: 48%;
+        top: 40%;
+        left: 40%;
         transform: translate(-50%, -50%) scale(0.68);
         width: 380px; /* Ancho original del contenido */
         height: 140px; /* Alto original del contenido */
@@ -263,7 +263,6 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
         display: flex;
         gap: 5px;
         margin-bottom: 15px;
-        justify-content: center; /* Centrar los botones de pestaña */
     }
     .tab-btn {
         padding: 8px 12px;
@@ -350,78 +349,6 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
         background-color: #4CAF50;
         color: white;
     }
-    
-
-    /* Ocultar el select de "Fuente:" */
-    .line-controls select[name^="fuente"] {
-        display: none;
-    }
-
-    /* Ocultar la etiqueta "Fuente:" */
-    .tab-content .line-controls label:nth-of-type(2) {
-        display: none;
-    }
-
-    /* Toolbar Styles */
-    .toolbar {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        align-items: center;
-        justify-content: center; /* Centrado horizontal */
-        border: 1px solid #ddd;
-        padding: 8px;
-        border-radius: 8px;
-        background-color: #f8f9fa;
-        margin-bottom: 15px;
-    }
-    .toolbar-group {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-    .toolbar-divider {
-        width: 1px;
-        height: 24px;
-        background-color: #ccc;
-        margin: 0 4px;
-    }
-    .toolbar > .line-controls > label,
-    .toolbar > label {
-        display: none; /* Ocultar etiquetas de texto directo */
-    }
-    .toolbar .font-size-control, .toolbar .alineacion-btns {
-        margin: 0;
-    }
-    .toolbar .alineacion-btns button {
-        padding: 8px 10px;
-        line-height: 1; /* Añadido para consistencia vertical */
-    }
-    .toolbar .checkbox-label {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        margin-bottom: 0;
-        font-weight: bold;
-        cursor: pointer;
-        padding: 8px 12px;
-        border-radius: 5px;
-        background-color: #f0f0f0;
-        border: 1px solid #ccc;
-        line-height: 1;
-        transition: all 0.2s ease;
-    }
-    .toolbar .checkbox-label:hover {
-        background-color: #e0e0e0;
-    }
-    .hidden-checkbox {
-        display: none; /* Ocultar checkbox original */
-    }
-    .toolbar .checkbox-label.checked {
-        background-color: #c8e6c9;
-        border-color: #a5d6a7;
-        box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
-    }
 </style>
 </head>
 <body>
@@ -470,7 +397,7 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
         </div>
       <?php endforeach; ?>
     </div>
-    <button type="submit" id="btn-next" class="boton-siguiente">Siguiente</button>
+    
   </form>
 
 <?php elseif ($step == 2):
@@ -490,20 +417,20 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
 
   <div class="form-container">
     <div class="input-line-item">
-        <input type="text" name="linea1" placeholder="Línea 1" id="linea1_input" value="<?= htmlspecialchars($contenido['linea1'] ?? '') ?>" required>
-        <input type="checkbox" id="chk_linea1" <?= !empty($contenido['linea1']) ? 'checked' : '' ?> disabled>
+        <input type="text" name="linea1" placeholder="Línea 1" id="linea1_input" required>
+        <input type="checkbox" id="chk_linea1" checked disabled>
     </div>
     <div class="input-line-item">
-        <input type="text" name="linea2" placeholder="Línea 2" id="linea2_input" value="<?= htmlspecialchars($contenido['linea2'] ?? '') ?>">
-        <input type="checkbox" id="chk_linea2" <?= !empty($contenido['linea2']) ? 'checked' : '' ?> >
+        <input type="text" name="linea2" placeholder="Línea 2" id="linea2_input">
+        <input type="checkbox" id="chk_linea2" checked>
     </div>
     <div class="input-line-item">
-        <input type="text" name="linea3" placeholder="Línea 3" id="linea3_input" value="<?= htmlspecialchars($contenido['linea3'] ?? '') ?>">
-        <input type="checkbox" id="chk_linea3" <?= !empty($contenido['linea3']) ? 'checked' : '' ?> >
+        <input type="text" name="linea3" placeholder="Línea 3" id="linea3_input">
+        <input type="checkbox" id="chk_linea3" checked>
     </div>
     <div class="input-line-item">
-        <input type="text" name="linea4" placeholder="Línea 4" id="linea4_input" value="<?= htmlspecialchars($contenido['linea4'] ?? '') ?>">
-        <input type="checkbox" id="chk_linea4" <?= !empty($contenido['linea4']) ? 'checked' : '' ?> >
+        <input type="text" name="linea4" placeholder="Línea 4" id="linea4_input">
+        <input type="checkbox" id="chk_linea4" checked>
     </div>
   
     <hr style="margin: 20px 0;">
@@ -544,295 +471,60 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
   $plantilla_base = $stmt->fetch(PDO::FETCH_ASSOC);
   if (!$plantilla_base) die("Plantilla no encontrada.");
 
-  // Decodificar el contenido original de la plantilla
-  $contenido_base = json_decode($plantilla_base['content'], true);
-
-  // 3. Recuperar texto del usuario (asumiendo que viene de Step 2)
+  // 3. Recuperar texto del usuario
   $lineas_texto = [
-      1 => $_GET['linea1'] ?? ($contenido_base['linea1'] ?? ''),
-      2 => $_GET['linea2'] ?? ($contenido_base['linea2'] ?? ''),
-      3 => $_GET['linea3'] ?? ($contenido_base['linea3'] ?? ''),
-      4 => $_GET['linea4'] ?? ($contenido_base['linea4'] ?? '')
+      1 => $_GET['linea1'] ?? '',
+      2 => $_GET['linea2'] ?? '',
+      3 => $_GET['linea3'] ?? '',
+      4 => $_GET['linea4'] ?? ''
   ];
-
-  // Preparar datos iniciales para la vista previa y JavaScript
-  $initial_template_data = [
-      'id' => $plantilla_base['id'],
-      'linea1' => [
-          'texto' => $lineas_texto[1],
-          'fuente' => $plantilla_base['fuente_linea_1'],
-          'tamano' => $plantilla_base['tamano_linea_1'],
-          'negrita' => !empty($plantilla_base['bold_linea_1']),
-          'alineacion' => $plantilla_base['alineacion_linea_1'],
-          'margen' => $plantilla_base['margen_top_linea_1'],
-          'mayuscula' => !empty($plantilla_base['mayus_linea_1'])
-      ],
-      'linea2' => [
-          'texto' => $lineas_texto[2],
-          'fuente' => $plantilla_base['fuente_linea_2'],
-          'tamano' => $plantilla_base['tamano_linea_2'],
-          'negrita' => !empty($plantilla_base['bold_linea_2']),
-          'alineacion' => $plantilla_base['alineacion_linea_2'],
-          'margen' => $plantilla_base['margen_top_linea_2'],
-          'mayuscula' => !empty($plantilla_base['mayus_linea_2'])
-      ],
-      'linea3' => [
-          'texto' => $lineas_texto[3],
-          'fuente' => $plantilla_base['fuente_linea_3'],
-          'tamano' => $plantilla_base['tamano_linea_3'],
-          'negrita' => !empty($plantilla_base['bold_linea_3']),
-          'alineacion' => $plantilla_base['alineacion_linea_3'],
-          'margen' => $plantilla_base['margen_top_linea_3'],
-          'mayuscula' => !empty($plantilla_base['mayus_linea_3'])
-      ],
-      'linea4' => [
-          'texto' => $lineas_texto[4],
-          'fuente' => $plantilla_base['fuente_linea_4'],
-          'tamano' => $plantilla_base['tamano_linea_4'],
-          'negrita' => !empty($plantilla_base['bold_linea_4']),
-          'alineacion' => $plantilla_base['alineacion_linea_4'],
-          'margen' => $plantilla_base['margen_top_linea_4'],
-          'mayuscula' => !empty($plantilla_base['mayus_linea_4'])
-      ]
-  ];
-  // No hay global_line_spacing aquí, ya que es por línea.
 ?>
-<script>
-    // Exponer los datos iniciales de la plantilla a JavaScript
-    window.initialTemplateData = <?= json_encode($initial_template_data); ?>;
-</script>
-
 <h2 class="titulo">3. Personalizá tu diseño</h2>
 
-<form method="post" action="index.php?u=<?= htmlspecialchars($link_code) ?>&step=4">
-    <input type="hidden" name="model_id" value="<?= htmlspecialchars($model_id) ?>">
-    <input type="hidden" name="template_id" value="<?= htmlspecialchars($template_id) ?>">
+<form method="post" action="submit_order.php">
+    <input type="hidden" name="u" value="<?= htmlspecialchars($link_code) ">
+    <input type="hidden" name="model_id" value="<?= htmlspecialchars($model_id) ">
+    <input type="hidden" name="template_id" value="<?= htmlspecialchars($template_id) ">
+    <?php foreach ($lineas_texto as $num => $texto): ?>
+        <input type="hidden" name="linea<?= $num ">" value="<?= htmlspecialchars($texto) ">
+    <?php endforeach; ?>
 
     <div class="editor-wrapper">
+        <!-- Columna de Controles -->
         <div class="controles-col">
-            <div class="tab-buttons">
-                <button type="button" class="tab-btn active" onclick="showTab(1)">Línea 1</button>
-                <button type="button" class="tab-btn" onclick="showTab(2)">Línea 2</button>
-                <button type="button" class="tab-btn" onclick="showTab(3)">Línea 3</button>
-                <button type="button" class="tab-btn" onclick="showTab(4)">Línea 4</button>
+            <div class="form-group">
+                <label for="font-size-slider">Tamaño del Texto:</label>
+                <input type="range" class="form-control-range" id="font-size-slider" name="global_font_size" min="10" max="50" value="24" step="1">
+                <span id="font-size-value">24px</span>
             </div>
-
-            <?php for ($i = 1; $i <= 4; $i++):
-                $line_number = $i;
-                $selected_font = $plantilla_base["fuente_linea_$i"];
-            ?>
-            <div class="tab-content <?= $i == 1 ? 'active' : '' ?>" id="tab<?= $i ?>">
-                <div class="form-group" style="margin-bottom: 10px;">
-                    <label for="linea<?= $i ?>_texto_editor" style="font-weight: bold; display: block; margin-bottom: 5px;">Texto de la línea:</label>
-                    <input type="text" id="linea<?= $i ?>_texto_editor" name="linea<?= $i ?>_texto_editor" value="<?= htmlspecialchars($lineas_texto[$i] ?? '') ?>">
-                </div>
-                <div class="line-controls toolbar">
-                    
-                    <div class="toolbar-group">
-                        <?php include '../admin/includes/_font_selector.php'; ?>
-                    </div>
-
-                    <div class="toolbar-divider"></div>
-
-                    <div class="toolbar-group">
-                        <button type="button" class="btn-font-size" onclick="changeFontSize(<?= $i ?>, -1)"><i class="fas fa-minus"></i></button>
-                        <span class="current-font-size" id="tamano_display_<?= $i ?>"><?= $plantilla_base["tamano_linea_$i"] ?>px</span>
-                        <button type="button" class="btn-font-size" onclick="changeFontSize(<?= $i ?>, 1)"><i class="fas fa-plus"></i></button>
-                        <input type="hidden" name="tamano<?= $i ?>" id="tamano<?= $i ?>" value="<?= $plantilla_base["tamano_linea_$i"] ?>">
-                    </div>
-
-                    <div class="toolbar-divider"></div>
-
-                    <div class="toolbar-group">
-                        <button type="button" class="btn-margin-top" onclick="changeMarginTop(<?= $i ?>, -2)"><i class="fas fa-arrow-up"></i></button>
-                        <span class="current-font-size" id="margen_top_display_<?= $i ?>"><?= $plantilla_base["margen_top_linea_$i"] ?>px</span>
-                        <button type="button" class="btn-margin-top" onclick="changeMarginTop(<?= $i ?>, 2)"><i class="fas fa-arrow-down"></i></button>
-                        <input type="hidden" name="margen_top<?= $i ?>" id="margen_top<?= $i ?>" value="<?= $plantilla_base["margen_top_linea_$i"] ?>">
-                    </div>
-
-                    <div class="toolbar-divider"></div>
-
-                    <div class="toolbar-group alineacion-btns" data-linea="<?= $i ?>">
-                        <button type="button" onclick="setAlign(<?= $i ?>, 'left', this)"><i class="fas fa-align-left"></i></button>
-                        <button type="button" onclick="setAlign(<?= $i ?>, 'center', this)"><i class="fas fa-align-center"></i></button>
-                        <button type="button" onclick="setAlign(<?= $i ?>, 'right', this)"><i class="fas fa-align-right"></i></button>
-                        <input type="hidden" name="alineacion<?= $i ?>" id="alineacion<?= $i ?>" value="<?= $plantilla_base["alineacion_linea_$i"] ?>">
-                    </div>
-
-                    <div class="toolbar-divider"></div>
-
-                    <div class="toolbar-group">
-                        <label class="checkbox-label" for="negrita<?= $i ?>"><b>B</b></label>
-                        <input type="checkbox" class="hidden-checkbox" id="negrita<?= $i ?>" name="negrita<?= $i ?>" <?= !empty($plantilla_base["bold_linea_$i"]) ? "checked" : "" ?>>
-                        <label class="checkbox-label" for="mayuscula<?= $i ?>">AA</label>
-                        <input type="checkbox" class="hidden-checkbox" id="mayuscula<?= $i ?>" name="mayuscula<?= $i ?>" <?= !empty($plantilla_base["mayus_linea_$i"]) ? "checked" : "" ?>>
-                    </div>
-                </div>
+            <div class="form-group">
+                <label for="line-spacing-slider">Espaciado entre Líneas:</label>
+                <input type="range" class="form-control-range" id="line-spacing-slider" name="global_line_spacing" min="0.5" max="2.5" value="1.2" step="0.1">
+                <span id="line-spacing-value">1.2</span>
             </div>
-            <?php endfor; ?>
-            
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="bold-checkbox" name="global_bold">
+                <label class="form-check-label" for="bold-checkbox">Negrita</label>
+            </div>
         </div>
 
+        <!-- Columna de Vista Previa -->
         <div class="preview-col">
             <div id="editor-preview-container" style="transform: scale(0.8); transform-origin: center;">
+                <?php
+                    // Pasar los datos combinados a la plantilla de vista previa
+                    $plantilla = $datos_plantilla_para_preview;
+                    include '../admin/includes/_plantilla_preview.php';
+                ?>
             </div>
         </div>
     </div>
-    <button type="submit" class="boton-siguiente active" style="margin-top: 25px;">Siguiente</button>
+    <button type="submit" class="boton-siguiente active" style="width:100%; margin-top: 20px;">Finalizar y Pedir</button>
 </form>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.querySelector('form');
-    const previewContainer = document.getElementById('editor-preview-container');
-
-    function actualizarVistaPrevia() {
-        const datos = {
-            linea1: {},
-            linea2: {},
-            linea3: {},
-            linea4: {}
-        };
-
-        for (let i = 1; i <= 4; i++) {
-            const negritaCheckbox = form.querySelector(`input[type="checkbox"][name="negrita${i}"]`);
-            const mayusculaCheckbox = form.querySelector(`input[type="checkbox"][name="mayuscula${i}"]`);
-            datos['linea' + i] = {
-                texto: form.querySelector(`[name="linea${i}_texto_editor"]`).value,
-                fuente: form.querySelector(`[name="fuente${i}"]`).value,
-                tamano: form.querySelector(`[name="tamano${i}"]`).value,
-                negrita: negritaCheckbox ? negritaCheckbox.checked : false,
-                alineacion: form.querySelector(`[name="alineacion${i}"]`).value,
-                margen: form.querySelector(`[name="margen_top${i}"]`).value,
-                mayuscula: mayusculaCheckbox ? mayusculaCheckbox.checked : false
-            };
-        }
-        window.renderizarPlantilla(previewContainer, datos);
-    }
-
-    // Event listener para todos los cambios en el formulario
-    form.addEventListener('input', actualizarVistaPrevia);
-    form.addEventListener('change', actualizarVistaPrevia); // Para selects y checkboxes
-
-    // Funciones auxiliares para botones
-    window.showTab = function(n) {
-        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-        document.getElementById('tab' + n).classList.add('active');
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        form.querySelector(`.tab-buttons button:nth-child(${n})`).classList.add('active');
-        actualizarVistaPrevia();
-    }
-
-    window.setAlign = function(linea, direccion, btn) {
-        document.getElementById('alineacion' + linea).value = direccion;
-        const parent = btn.parentElement;
-        parent.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        actualizarVistaPrevia();
-    }
-
-    window.changeFontSize = function(linea, change) {
-        const input = document.querySelector(`input[name="tamano${linea}"]`);
-        const display = document.getElementById(`tamano_display_${linea}`);
-        let currentValue = parseInt(input.value, 10);
-        currentValue += change;
-        if (currentValue < 8) currentValue = 8;
-        if (currentValue > 100) currentValue = 100;
-        input.value = currentValue;
-        if (display) {
-            display.textContent = currentValue + 'px';
-        }
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-
-    window.changeMarginTop = function(linea, change) {
-        const input = document.querySelector(`input[name="margen_top${linea}"]`);
-        const display = document.getElementById(`margen_top_display_${linea}`);
-        let currentValue = parseInt(input.value, 10);
-        currentValue += change;
-        if (currentValue < -50) currentValue = -50;
-        if (currentValue > 150) currentValue = 150;
-        input.value = currentValue;
-        if (display) {
-            display.textContent = currentValue + 'px';
-        }
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-
-    // Renderizado inicial
-    actualizarVistaPrevia();
-
-    // Seteado inicial de botones de alineación
-    for (let i = 1; i <= 4; i++) {
-        const alignValue = document.getElementById('alineacion' + i).value;
-        const alignButton = form.querySelector(`.alineacion-btns[data-linea="${i}"] button[onclick*="'${alignValue}'"]`);
-        if (alignButton) {
-            alignButton.classList.add('active');
-        }
-    }
-
-    // Script for custom checkbox labels
-    document.querySelectorAll('.checkbox-label').forEach(label => {
-        const checkbox = document.getElementById(label.getAttribute('for'));
-        if (!checkbox) return;
-
-        const updateLabelState = () => {
-            if (checkbox.checked) {
-                label.classList.add('checked');
-            } else {
-                label.classList.remove('checked');
-            }
-        };
-
-        checkbox.addEventListener('change', updateLabelState);
-        updateLabelState(); // Set initial state
-    });
-});
-</script>
-<?php elseif ($step == 4):
-    // Recoger todos los datos de personalización del paso 3
-    $custom_data = array_merge($_GET, $_POST);
-?>
-<h2 class="titulo">4. Ingresá tus datos para finalizar</h2>
-<form method="post" action="submit_order.php">
-    <?php
-    // Reenviar todos los datos personalizados como campos ocultos
-    foreach ($custom_data as $key => $value) {
-        if ($key !== 'step') { // No reenviar el 'step' para evitar confusiones
-             echo '<input type="hidden" name="' . htmlspecialchars($key) . '" value="' . htmlspecialchars($value) . '">' . "\n";
-        }
-    }
-    ?>
-
-    <div class="form-container">
-        <div style="display: flex; gap: 20px; margin-bottom: 10px;">
-            <div style="flex: 1;">
-                <label for="name" style="display:block; margin-bottom:5px;">Nombre</label>
-                <input type="text" id="name" name="name" required>
-            </div>
-            <div style="flex: 1;">
-                <label for="lastname" style="display:block; margin-bottom:5px;">Apellido</label>
-                <input type="text" id="lastname" name="lastname" required>
-            </div>
-        </div>
-        <div style="margin-bottom: 10px;">
-            <label for="email" style="display:block; margin-bottom:5px;">Email</label>
-            <input type="email" id="email" name="email" required>
-        </div>
-        <div style="margin-bottom: 10px;">
-            <label for="phone" style="display:block; margin-bottom:5px;">Teléfono</label>
-            <input type="tel" id="phone" name="phone" required>
-        </div>
-        <div>
-            <label for="address" style="display:block; margin-bottom:5px;">Dirección</label>
-            <input type="text" id="address" name="address" required>
-        </div>
-    </div>
-
-    <button type="submit" class="boton-siguiente active">Finalizar y Pedir</button>
-</form>
 <?php endif; ?>
 
+<?php endif; ?>
 </div>
 
 <footer style="background-color: #fff; border: 1px solid #ccc; padding: 10px 20px; font-family: Roboto, sans-serif; border-radius: 8px; width: calc(85% - 20px); max-width: 95%; text-align: center; margin: 40px auto 20px auto;">
@@ -862,29 +554,6 @@ function seleccionarPlantilla(el, templateId) {
     const selectedElegirBtn = el.querySelector('.btn-elegir');
     if (selectedElegirBtn) selectedElegirBtn.style.display = 'block'; // Show selected button
     document.querySelector('input[name="template_id"]').value = templateId;
-
-    // Obtener los datos de la plantilla seleccionada
-    const templateDataAttr = el.getAttribute('data-template-data');
-    const templateData = JSON.parse(templateDataAttr);
-
-    // Actualizar los inputs de texto y checkboxes
-    for (let i = 1; i <= 4; i++) {
-        const inputElement = document.getElementById(`linea${i}_input`);
-        const checkboxElement = document.getElementById(`chk_linea${i}`);
-        const lineaData = templateData[`linea${i}`];
-
-        if (inputElement && lineaData) {
-            if (inputElement.value.trim() === '') {
-                inputElement.value = lineaData.texto || '';
-            }
-        }
-        if (checkboxElement && lineaData) {
-            checkboxElement.checked = !!inputElement.value.trim(); // <--- MODIFIED THIS LINE
-        }
-    }
-
-    updateDisabledStates(); // Actualizar el estado de deshabilitado de los checkboxes
-    updateRealtimePreview(); // Llama a la función para actualizar la vista previa
 }
 
 function updateRealtimePreview() {
@@ -1007,84 +676,98 @@ document.addEventListener('DOMContentLoaded', () => {
         const form = document.querySelector('form');
         const previewContainer = document.getElementById('editor-preview-container');
 
-        // Get references to the new global controls
-        const fontSizeSlider = document.getElementById('font-size-slider');
-        const fontSizeValueSpan = document.getElementById('font-size-value');
-        const lineSpacingSlider = document.getElementById('line-spacing-slider');
-        const lineSpacingValueSpan = document.getElementById('line-spacing-value');
-        const boldCheckbox = document.getElementById('bold-checkbox');
-
-        // Initial display of slider values
-        if (fontSizeSlider && fontSizeValueSpan) {
-            fontSizeValueSpan.textContent = `${fontSizeSlider.value}px`;
-        }
-        if (lineSpacingSlider && lineSpacingValueSpan) {
-            lineSpacingValueSpan.textContent = lineSpacingSlider.value;
-        }
-
         window.actualizarVistaPreviaEditor = function() {
-            // Read current values from global controls
-            const currentGlobalFontSize = fontSizeSlider ? parseInt(fontSizeSlider.value) : 24;
-            const currentGlobalLineSpacing = lineSpacingSlider ? parseFloat(lineSpacingSlider.value) : 1.2;
-            const currentGlobalBold = boldCheckbox ? boldCheckbox.checked : false;
+            const datos = { linea1: {}, linea2: {}, linea3: {}, linea4: {} };
 
-            // Start with the initial data provided by PHP
-            const datosParaRender = JSON.parse(JSON.stringify(window.initialTemplateData)); // Deep copy
-
-            // Asegurarse de que la estructura HTML básica exista en el previewContainer
-            if (previewContainer.innerHTML.trim() === '') {
-                previewContainer.innerHTML = `
-                    <div class="plantilla-preview-container">
-                        <div class="plantilla-linea plantilla-linea-1"></div>
-                        <div class="plantilla-linea plantilla-linea-2"></div>
-                        <div class="plantilla-linea plantilla-linea-3"></div>
-                        <div class="plantilla-linea plantilla-linea-4"></div>
-                    </div>
-                `;
-            }
-
-            // Aplicar valores de los controles por línea
             for (let i = 1; i <= 4; i++) {
-                if (datosParaRender[`linea${i}`]) {
-                    const textoEditorInput = form.querySelector(`[name="linea${i}_texto_editor"]`);
-                    const fuenteSelect = form.querySelector(`[name="fuente${i}"]`);
-                    const tamanoInput = form.querySelector(`[name="tamano${i}"]`);
-                    const negritaCheckbox = form.querySelector(`[name="negrita${i}"]`);
-                    const alineacionInput = form.querySelector(`[name="alineacion${i}"]`);
-                    const margenTopInput = form.querySelector(`[name="margen_top${i}"]`);
-                    const mayusculaCheckbox = form.querySelector(`[name="mayuscula${i}"]`);
-
-                    datosParaRender[`linea${i}`].texto = textoEditorInput ? textoEditorInput.value : '';
-                    datosParaRender[`linea${i}`].fuente = fuenteSelect ? fuenteSelect.value : datosParaRender[`linea${i}`].fuente; // Mantener la fuente inicial si no hay selector
-                    datosParaRender[`linea${i}`].tamano = tamanoInput ? parseInt(tamanoInput.value) : datosParaRender[`linea${i}`].tamano;
-                    datosParaRender[`linea${i}`].negrita = negritaCheckbox ? negritaCheckbox.checked : datosParaRender[`linea${i}`].negrita;
-                    datosParaRender[`linea${i}`].alineacion = alineacionInput ? alineacionInput.value : datosParaRender[`linea${i}`].alineacion;
-                    datosParaRender[`linea${i}`].margen = margenTopInput ? parseInt(margenTopInput.value) : datosParaRender[`linea${i}`].margen;
-                    datosParaRender[`linea${i}`].mayuscula = mayusculaCheckbox ? mayusculaCheckbox.checked : datosParaRender[`linea${i}`].mayuscula;
-                }
+                const negritaCheckbox = form.querySelector(`input[type="checkbox"][name="negrita${i}"]`);
+                datos['linea' + i] = {
+                    texto: form.querySelector(`[name="linea${i}_texto"]`).value,
+                    fuente: form.querySelector(`[name="fuente${i}"]`).value,
+                    tamano: form.querySelector(`[name="tamano${i}"]`).value,
+                    negrita: negritaCheckbox ? negritaCheckbox.checked : false,
+                    alineacion: form.querySelector(`[name="alineacion${i}"]`).value,
+                    margen: form.querySelector(`[name="margen_top${i}"]`).value
+                };
             }
-            // No hay global_line_spacing si no hay un control global para ello.
-            // Se asume que el margen superior de cada línea es suficiente.
-
-            // No hay elementos para actualizar valores globales si no existen.
-            // Se eliminan las referencias a fontSizeValueSpan y lineSpacingValueSpan.
-
-            window.renderizarPlantilla(previewContainer, datosParaRender);
-        };
-
-        // Add event listeners to global controls
-        if (fontSizeSlider) {
-            fontSizeSlider.addEventListener('input', window.actualizarVistaPreviaEditor);
-        }
-        if (lineSpacingSlider) {
-            lineSpacingSlider.addEventListener('input', window.actualizarVistaPreviaEditor);
-        }
-        if (boldCheckbox) {
-            boldCheckbox.addEventListener('change', window.actualizarVistaPreviaEditor);
+            console.log('previewContainer:', previewContainer);
+            console.log('datos:', datos);
+            window.renderizarPlantilla(previewContainer, datos);
         }
 
-        // Initial render
-        setTimeout(window.actualizarVistaPreviaEditor, 50);
+        form.addEventListener('input', actualizarVistaPreviaEditor);
+        form.addEventListener('change', actualizarVistaPreviaEditor);
+
+        // Font size controls
+        document.querySelectorAll('.btn-font-size').forEach(button => {
+            button.addEventListener('click', (event) => {
+                const action = button.dataset.action;
+                const line = button.dataset.line;
+                const hiddenInput = form.querySelector(`input[name="tamano${line}"]`);
+                const currentSizeSpan = document.getElementById(`current_font_size_${line}`);
+                let currentSize = parseInt(hiddenInput.value);
+
+                if (action === 'increase') {
+                    currentSize++;
+                } else {
+                    currentSize--;
+                }
+
+                // Clamp values between 8 and 100
+                currentSize = Math.max(8, Math.min(100, currentSize));
+
+                hiddenInput.value = currentSize;
+                currentSizeSpan.textContent = `${currentSize}px`;
+                actualizarVistaPreviaEditor();
+            });
+        });
+
+        // Margin Top controls
+        document.querySelectorAll('.btn-margin-top').forEach(button => {
+            button.addEventListener('click', (event) => {
+                const action = button.dataset.action;
+                const line = button.dataset.line;
+                const hiddenInput = form.querySelector(`input[name="margen_top${line}"]`);
+                let currentMargin = parseInt(hiddenInput.value);
+
+                if (action === 'increase') {
+                    currentMargin++;
+                } else {
+                    currentMargin--;
+                }
+
+                // Clamp values (e.g., between -50 and 50, adjust as needed)
+                currentMargin = Math.max(-50, Math.min(50, currentMargin)); // Example range
+
+                hiddenInput.value = currentMargin;
+                actualizarVistaPreviaEditor();
+            });
+        });
+
+        window.showTab = function(n) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.getElementById('tab' + n).classList.add('active');
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            form.querySelector(`.tab-buttons button:nth-child(${n})`).classList.add('active');
+        }
+
+        window.setAlign = function(linea, direccion, btn) {
+            document.getElementById('alineacion' + linea).value = direccion;
+            const parent = btn.parentElement;
+            parent.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            actualizarVistaPreviaEditor();
+        }
+
+        actualizarVistaPreviaEditor();
+
+        for (let i = 1; i <= 4; i++) {
+            const alignValue = document.getElementById('alineacion' + i).value;
+            if (alignValue) {
+                const alignButton = form.querySelector(`.alineacion-btns[data-linea="${i}"] button[onclick*="'${alignValue}'"]`);
+                if (alignButton) alignButton.classList.add('active');
+            }
+        }
     }
 });
 

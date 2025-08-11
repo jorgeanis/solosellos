@@ -1,0 +1,49 @@
+ DOM Content Loaded.
+ Event listener 'input' añadido a:  
+ Event listener 'input' añadido a:  
+ Event listener 'input' añadido a:  
+ Event listener 'input' añadido a:  
+ Event listener 'change' añadido a:  
+ Event listener 'change' añadido a:  
+ Event listener 'change' añadido a:  
+ Estamos en el paso 2.
+ Preselected Template ID:  
+ No preselected template, selecting first card:   ID:  41
+ seleccionarPlantilla llamado. Elemento:   Template ID:  41
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:512 templateDataAttr en seleccionarPlantilla:  {"id":41,"linea1":{"texto":"CLAUDIA CORBALAN","fuente":"Roboto","tamano":34,"negrita":true,"alineacion":"center","margen":0},"linea2":{"texto":"PROF. NIVEL INICIAL","fuente":"Roboto","tamano":34,"negrita":false,"alineacion":"center","margen":-15},"linea3":{"texto":"M.P.: 999999","fuente":"Roboto","tamano":34,"negrita":false,"alineacion":"center","margen":-15},"linea4":{"texto":"COLEGIO NACIONAL","fuente":"Roboto","tamano":34,"negrita":false,"alineacion":"center","margen":-15}}
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:515 currentTemplateData en seleccionarPlantilla:  {id: 41, linea1: {…}, linea2: {…}, linea3: {…}, linea4: {…}}
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:521 updateRealtimePreview llamado.
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:531 Preview Wrapper:  <div class=​"plantilla-preview-wrapper" id=​"template-preview-41">​…​</div>​
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:532 Preview Container:  <div class=​"plantilla-preview-container">​…​</div>​flex
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:543 linea1_input Element:  <input type=​"text" name=​"linea1" placeholder=​"Línea 1" id=​"linea1_input" value required style=​"margin-bottom:​ 10px;​ width:​90%;​ max-width:​ 650px;​ padding:​ 10px;​ margin:​ 0 auto auto;​ display:​ block;​">​
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:547 Texto para linea1:  CLAUDIA CORBALAN
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:551 chk_linea1 Element:  null  Checked:  N/A
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:543 linea2_input Element:  <input type=​"text" name=​"linea2" placeholder=​"Línea 2" id=​"linea2_input" value style=​"margin-bottom:​ 10px;​ width:​90%;​ max-width:​ 650px;​ padding:​ 10px;​ margin:​ 0 auto;​ display:​ block;​">​
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:547 Texto para linea2:  PROF. NIVEL INICIAL
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:551 chk_linea2 Element:  <input type=​"checkbox" id=​"chk_linea2">​  Checked:  false
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:543 linea3_input Element:  <input type=​"text" name=​"linea3" placeholder=​"Línea 3" id=​"linea3_input" value style=​"margin-bottom:​ 10px;​ width:​90%;​ max-width:​ 650px;​ padding:​ 10px;​ margin:​ 0 auto;​ display:​ block;​">​
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:547 Texto para linea3:  M.P.: 999999
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:551 chk_linea3 Element:  <input type=​"checkbox" id=​"chk_linea3">​  Checked:  false
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:543 linea4_input Element:  <input type=​"text" name=​"linea4" placeholder=​"Línea 4" id=​"linea4_input" value style=​"margin-bottom:​ 10px;​ width:​90%;​ max-width:​ 650px;​ padding:​ 10px;​ margin:​ 0 auto;​ display:​ block;​">​
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:547 Texto para linea4:  COLEGIO NACIONAL
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:551 chk_linea4 Element:  <input type=​"checkbox" id=​"chk_linea4">​  Checked:  false
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:556 Datos para renderizar:  {id: 41, linea1: {…}, linea2: {…}, linea3: {…}, linea4: {…}}
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:506 seleccionarPlantilla llamado. Elemento:  <label class=​"modelo-card active" onclick=​"seleccionarPlantilla(this, 41)​" style=​"display:​block;​ border-radius:​ 8px;​ padding:​10px;​ width:​ 200px;​  background:​ #fff;​ margin-bottom:​ 10px;​" data-template-id=​"41" data-template-data=​"{"id":​41,"linea1":​{"texto":​"CLAUDIA CORBALAN","fuente":​"Roboto","tamano":​34,"negrita":​true,"alineacion":​"center","margen":​0}​,"linea2":​{"texto":​"PROF. NIVEL INICIAL","fuente":​"Roboto","tamano":​34,"negrita":​false,"alineacion":​"center","margen":​-15}​,"linea3":​{"texto":​"M.P.:​ 999999","fuente":​"Roboto","tamano":​34,"negrita":​false,"alineacion":​"center","margen":​-15}​,"linea4":​{"texto":​"COLEGIO NACIONAL","fuente":​"Roboto","tamano":​34,"negrita":​false,"alineacion":​"center","margen":​-15}​}​">​…​</label>​ Template ID:  41
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:512 templateDataAttr en seleccionarPlantilla:  {"id":41,"linea1":{"texto":"CLAUDIA CORBALAN","fuente":"Roboto","tamano":34,"negrita":true,"alineacion":"center","margen":0},"linea2":{"texto":"PROF. NIVEL INICIAL","fuente":"Roboto","tamano":34,"negrita":false,"alineacion":"center","margen":-15},"linea3":{"texto":"M.P.: 999999","fuente":"Roboto","tamano":34,"negrita":false,"alineacion":"center","margen":-15},"linea4":{"texto":"COLEGIO NACIONAL","fuente":"Roboto","tamano":34,"negrita":false,"alineacion":"center","margen":-15}}
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:515 currentTemplateData en seleccionarPlantilla:  {id: 41, linea1: {…}, linea2: {…}, linea3: {…}, linea4: {…}}
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:521 updateRealtimePreview llamado.
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:531 Preview Wrapper:  <div class=​"plantilla-preview-wrapper" id=​"template-preview-41">​…​</div>​
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:532 Preview Container:  <div class=​"plantilla-preview-container">​…​</div>​flex
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:543 linea1_input Element:  <input type=​"text" name=​"linea1" placeholder=​"Línea 1" id=​"linea1_input" value required style=​"margin-bottom:​ 10px;​ width:​90%;​ max-width:​ 650px;​ padding:​ 10px;​ margin:​ 0 auto auto;​ display:​ block;​">​
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:547 Texto para linea1:  CLAUDIA CORBALAN
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:551 chk_linea1 Element:  null  Checked:  N/A
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:543 linea2_input Element:  <input type=​"text" name=​"linea2" placeholder=​"Línea 2" id=​"linea2_input" value style=​"margin-bottom:​ 10px;​ width:​90%;​ max-width:​ 650px;​ padding:​ 10px;​ margin:​ 0 auto;​ display:​ block;​">​
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:547 Texto para linea2:  PROF. NIVEL INICIAL
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:551 chk_linea2 Element:  <input type=​"checkbox" id=​"chk_linea2">​  Checked:  false
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:543 linea3_input Element:  <input type=​"text" name=​"linea3" placeholder=​"Línea 3" id=​"linea3_input" value style=​"margin-bottom:​ 10px;​ width:​90%;​ max-width:​ 650px;​ padding:​ 10px;​ margin:​ 0 auto;​ display:​ block;​">​
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:547 Texto para linea3:  M.P.: 999999
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:551 chk_linea3 Element:  <input type=​"checkbox" id=​"chk_linea3">​  Checked:  false
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:543 linea4_input Element:  <input type=​"text" name=​"linea4" placeholder=​"Línea 4" id=​"linea4_input" value style=​"margin-bottom:​ 10px;​ width:​90%;​ max-width:​ 650px;​ padding:​ 10px;​ margin:​ 0 auto;​ display:​ block;​">​
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:547 Texto para linea4:  COLEGIO NACIONAL
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:551 chk_linea4 Element:  <input type=​"checkbox" id=​"chk_linea4">​  Checked:  false
+index.php?u=43d3de1cbaeeb061607ff1ac27684603da0bc0ae&step=2&model_id=2:556 Datos para renderizar:  {id: 41, linea1: {…}, linea2: {…}, linea3: {…}, linea4: {…}}

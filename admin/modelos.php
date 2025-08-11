@@ -14,50 +14,37 @@ if (isset($_POST['crear_modelo'])) {
   $title = $_POST['title'];
   $desc = $_POST['description'];
   $price = $_POST['price'];
-  $image = basename($_FILES["image"]["name"]);
-  $target = "../assets/images/" . $image;
-  move_uploaded_file($_FILES["image"]["tmp_name"], $target);
-  $stmt = $pdo->prepare("INSERT INTO models (user_id, title, description, price, image, stock) VALUES (?, ?, ?, ?, ?, '$stock')");
-  $stmt->execute([$_SESSION['user']['id'], $title, $desc, $price, $image]);
-  header("Location: modelos.php");
-  exit;
-}
-
-if (isset($_POST['editar_id'])) {
-  $id = intval($_POST['editar_id']);
-  $title = $_POST['title'];
-  $desc = $_POST['description'];
-  $price = $_POST['price'];
+  $stock = isset($_POST['stock']) ? 1 : 0;
+  $image = '';
 
   if (!empty($_FILES["image"]["name"])) {
     $image = basename($_FILES["image"]["name"]);
     $target = "../assets/images/" . $image;
     move_uploaded_file($_FILES["image"]["tmp_name"], $target);
-    $stmt = $pdo->prepare("UPDATE models SET title = ?, description = ?, price = ?, image = ? WHERE id = ? AND user_id = ?");
-    $stmt->execute([$title, $desc, $price, $image, $id, $_SESSION['user']['id']]);
-  } else {
-    $stmt = $pdo->prepare("UPDATE models SET title = ?, description = ?, price = ? WHERE id = ? AND user_id = ?");
-    $stmt->execute([$title, $desc, $price, $id, $_SESSION['user']['id']]);
   }
+  
+  $stmt = $pdo->prepare("INSERT INTO models (user_id, title, description, price, image, stock) VALUES (?, ?, ?, ?, ?, ?)");
+  $stmt->execute([$_SESSION['user']['id'], $title, $desc, $price, $image, $stock]);
   header("Location: modelos.php");
   exit;
 }
 
-if (isset($_POST['editar_id'])) {
+if (isset($_POST['guardar_cambios'])) {
   $id = intval($_POST['editar_id']);
   $title = $_POST['title'];
   $desc = $_POST['description'];
   $price = $_POST['price'];
+  $stock = isset($_POST['stock']) ? 1 : 0;
 
   if (!empty($_FILES["image"]["name"])) {
     $image = basename($_FILES["image"]["name"]);
     $target = "../assets/images/" . $image;
     move_uploaded_file($_FILES["image"]["tmp_name"], $target);
-    $stmt = $pdo->prepare("UPDATE models SET title = ?, description = ?, price = ?, image = ? WHERE id = ? AND user_id = ?");
-    $stmt->execute([$title, $desc, $price, $image, $id, $_SESSION['user']['id']]);
+    $stmt = $pdo->prepare("UPDATE models SET title = ?, description = ?, price = ?, image = ?, stock = ? WHERE id = ? AND user_id = ?");
+    $stmt->execute([$title, $desc, $price, $image, $stock, $id, $_SESSION['user']['id']]);
   } else {
-    $stmt = $pdo->prepare("UPDATE models SET title = ?, description = ?, price = ? WHERE id = ? AND user_id = ?");
-    $stmt->execute([$title, $desc, $price, $id, $_SESSION['user']['id']]);
+    $stmt = $pdo->prepare("UPDATE models SET title = ?, description = ?, price = ?, stock = ? WHERE id = ? AND user_id = ?");
+    $stmt->execute([$title, $desc, $price, $stock, $id, $_SESSION['user']['id']]);
   }
   header("Location: modelos.php");
   exit;
@@ -115,7 +102,7 @@ $models = $stmt->fetchAll();
 <!-- Campo: Stock -->
 <div class="form-group mt-2">
   <div class="form-check">
-    <input type="checkbox" class="form-check-input" id="stock" name="stock" value="1" <?= (isset($modelo) && $modelo['stock']) ? 'checked' : '' ?>>
+    <input type="checkbox" class="form-check-input" id="stock" name="stock" value="1">
     <label class="form-check-label" for="stock">¿Hay stock?</label>
   </div>
 </div>
@@ -337,9 +324,10 @@ function abrirModalEditar(btn) {
   form.title.value = data.title;
   form.description.value = data.description;
   form.price.value = data.price;
+  form.stock.checked = data.stock == 1;
   document.getElementById("modalTitulo").textContent = "Editar modelo";
   const boton = document.getElementById("botonEnviar");
-  boton.name = "editar_id";
+  boton.name = "guardar_cambios";
   boton.textContent = "Guardar cambios";
   modal.classList.add("mostrar");
   modal.querySelector(".modal-contenido").classList.remove("modal-cerrar");
