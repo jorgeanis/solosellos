@@ -31,7 +31,7 @@ if (!empty($busqueda)) {
 
 require_once 'includes/db.php';
 
-$sql = "SELECT orders.*, users.whatsapp, models.image AS model_image FROM orders JOIN models ON orders.model_id = models.id
+$sql = "SELECT orders.*, users.whatsapp, users.link_code, models.image AS model_image FROM orders JOIN models ON orders.model_id = models.id
 JOIN users ON orders.user_id = users.id WHERE $condiciones ORDER BY id DESC";
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
@@ -63,7 +63,29 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['pedido_id'], $_POST['
 <link href="https://fonts.googleapis.com/css2?family=<?= str_replace(' ', '+', $font) ?>:wght@400;700&display=swap" rel="stylesheet">
 <?php endforeach; ?>
 
+<link rel="stylesheet" href="../assets/css/plantilla-preview.css">
+
 <style>
+.preview-section {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.plantilla-preview-wrapper {
+    position: relative;
+    width: 380px;
+    height: 140px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #000; /* Fondo negro */
+    transform: scale(0.5); /* Ajustado para caber en la tabla */
+    transform-origin: top left; /* Necesario para la escala */
+}
+.plantilla-preview-wrapper .plantilla-preview-container {
+    border-color: #ccc; /* Borde gris claro */
+    background: #000; /* Fondo negro para el contenedor interior */
+}
 .preview {
     transform: scale(0.5);
     transform-origin: top left;
@@ -85,12 +107,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['pedido_id'], $_POST['
 }
 
 .preview-wrapper {
-    width: 190px;
-    height: 80px;
-    overflow: hidden;
+    width: 270px; /* To contain the scaled plantilla-preview-wrapper (266px) */
+    height: 100px; /* To contain the scaled plantilla-preview-wrapper (98px) */
+    /* Removed overflow: hidden; */
     justify-content: center;
     align-items: center;
-    overflow: hidden;
 }
 #sidebarWidget {
     position: fixed;
@@ -144,6 +165,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['pedido_id'], $_POST['
     border-radius: 5px;
     margin-top: 10px;
 }
+
 </style>
 
 <!-- Botón tipo pestaña -->
@@ -195,7 +217,7 @@ function cerrarSidebar() {
             <th>Email</th>
             <th>Modelo</th>
             <th>Preview</th>
-            <th>⬇️</th>
+            <th>Ver</th>
             <th>Estado</th>
             <th>Fecha</th>
         </tr>
@@ -214,67 +236,58 @@ function cerrarSidebar() {
             <td><input type="checkbox" class="select-preview" value="<?= $order['id'] ?>"></td>
             <td><?= $order['id'] ?></td>
             <td><?= $order['name'] ?> <?= $order['lastname'] ?></td>
-            <td><a href="https://wa.me/+549<?= preg_replace('/[^0-9]/', '', $order['whatsapp']) ?>" target="_blank" style="font-size:20px; text-decoration:none;">📱</a></td>
+            <?php
+            $cleaned_phone = preg_replace('/[^0-9]/', '', $order['phone']);
+            $whatsapp_link_number = '';
+            if (strlen($cleaned_phone) == 10) { // e.g., 381xxxxxxx
+                $whatsapp_link_number = '+549' . $cleaned_phone;
+            } elseif (strlen($cleaned_phone) == 12 && substr($cleaned_phone, 0, 3) == '549') { // e.g., 549381xxxxxxx
+                $whatsapp_link_number = '+' . $cleaned_phone;
+            } else { // Fallback, assume it might be an international number or already has '+'
+                $whatsapp_link_number = '+' . $cleaned_phone;
+            }
+            ?>
+            <td><a href="https://wa.me/<?= $whatsapp_link_number ?>" target="_blank" style="font-size:20px; text-decoration:none;">📱</a></td>
             <td><?= $order['email'] ?></td>
             <td><img src="../assets/images/<?= $order['model_image'] ?>" style="max-height:60px; display:block; margin:auto;"></td>
             <td>
-                <div class="preview-wrapper" style="position:relative;">
-                <div style="width: 380px; aspect-ratio: 1.875;">
-                <div style="justify-content: center; align-items: center; transform: scale(0.5); transform-origin: top left; width: 380px; height: 160px; background: black; position: relative; padding-top: 5px;">
                     <?php
-                    $styles = json_decode($order['styles'], true);
+                    // Preparar datos para el renderizador (esto ya estaba bien, lo mantengo)
+                    $plantilla_data = [
+                        'id' => $order['template_id'],
+                        'nombre' => $order['template_name'] ?? 'Plantilla sin nombre'
+                    ];
+
                     for ($i = 1; $i <= 4; $i++) {
-                        $line = $order['text_line' . $i];
-                        $font = $styles['fuente'][$i - 1] ?? 'Arial';
-                        $size = $styles['tamano'][$i - 1] ?? 14;
-                        $bold = !empty($styles['bold'][$i - 1]) ? 'bold' : 'normal';
-                        $top = $styles['margen_top'][$i - 1] ?? 0;
-                        echo '<div style="';
-                        echo 'font-family:' . $font . ';';
-                        echo 'font-size:' . $size . 'px;';
-                        echo 'font-weight:' . $bold . ';';
-                        echo 'color:white;';
-                        echo 'margin-top:' . $top . 'px;';
-                        echo 'margin-bottom:5px;';
-                        echo 'text-align:center;';
-                        echo 'width:100%;';
-                        echo '">' . $line . '</div>';
+                        $plantilla_data["linea$i"] = [
+                            'texto' => $order["text_line$i"],
+                            'fuente' => $styles['fuente'][$i-1] ?? 'Arial',
+                            'tamano' => $styles['tamano'][$i-1] ?? '16',
+                            'negrita' => $styles['bold'][$i-1] ?? false,
+                            'alineacion' => $styles['alineacion'][$i-1] ?? 'center',
+                            'margen' => $styles['margen_top'][$i-1] ?? '0',
+                            'mayuscula' => $styles['mayuscula'][$i-1] ?? false
+                        ];
                     }
                     ?>
-                </div>
-                </div>
-
-                <div class="preview" id="preview-<?= $order['id'] ?>" style="width: 380px; height: 160px; background: black; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
-                    <?php for ($i = 1; $i <= 4; $i++): ?>
-                        <?php
-                            $text = htmlspecialchars($order["text_line$i"]);
-                            if (empty($text)) continue;
-                            $font = $styles["fuente"][$i-1] ?? 'Arial';
-                            $size = $styles["tamano"][$i-1] ?? 20;
-                            $bold = !empty($styles["bold"][$i-1]) ? "bold" : "normal";
-                            $align = $styles["alineacion"][$i-1] ?? "center";
-                            $extra = isset($styles["margen_top"][$i-1]) ? (int)$styles["margen_top"][$i-1] : 0;
-                            $base_margin = 0;
-                            $margin_top = max(-10, $base_margin + $extra);
+                <div class="preview-section">
+                    <div class="plantilla-preview-wrapper" 
+                         id="preview-<?= $order['id'] ?>"
+                         data-template-data='<?= htmlspecialchars(json_encode($plantilla_data), ENT_QUOTES, 'UTF-8') ?>'>
+                        <?php 
+                        $plantilla = $plantilla_data; 
+                        include 'includes/_plantilla_preview.php'; 
                         ?>
-                        <div class="linea-prev" style="
-                            margin-top: <?= $margin_top ?>px;
-                            margin-bottom: 5px;
-                            font-family: '<?= $font ?>', sans-serif;
-                            font-size: <?= $size ?>px;
-                            font-weight: <?= $bold ?>;
-                            text-align: <?= $align ?>;
-                            width: 380px;
-                            color: white;
-                        "><?= $text ?></div>
-                    <?php endfor; ?>
-                        <td>
-                    <div style="margin-top: 4px; text-align: center;">
-    <button onclick="downloadPreview(<?= $order['id'] ?>)" title="Descargar PNG" style="background: none; border: none; cursor: pointer; font-size: 18px;">⬇️</button>
-    </div>
-                    </td>
+                    </div>
                 </div>
-</div>
+            </td>
+            
+            <td>
+                <div style="text-align: center;">
+                    <a href="../public/thanks.php?order=<?= htmlspecialchars($order['order_code'] ?? '') ?>&u=<?= htmlspecialchars($order['link_code'] ?? '') ?>" target="_blank" title="Ver Pedido">
+                        👁️
+                    </a>
+                </div>
             </td>
             <td>
                 <form method="POST" style="margin:0;">
@@ -292,101 +305,55 @@ function cerrarSidebar() {
     </tbody>
 </table>
 
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- Scripts comentados de PDF -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script> -->
+<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script> -->
+
+<script src="../assets/js/plantilla-renderer.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    const exportButton = document.getElementById('exportarPDF');
-    if (exportButton) {
-        exportButton.addEventListener('click', exportSelectedToPDF);
-    }
-});
-
-
-async function exportSelectedToPDF() {
-    document.getElementById('loadingExport').style.display = 'flex';
-    const checkboxes = document.querySelectorAll('.select-preview:checked');
-    if (checkboxes.length === 0) {
-        alert("Seleccioná al menos un preview.");
-        return;
-    }
-
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p', 'pt', 'a4');
-    const marginX = 20;
-    const marginY = 20;
-    const spacingX = 0;
-    const spacingY = 0;
-    const renderScale = 4;
-
-    const imgWidth = 107.72;  // 34mm
-    const imgHeight = 39.69;  // 18mm
-
-    const pageWidth = pdf.internal.pageSize.getWidth() - 2 * marginX;
-    const pageHeight = pdf.internal.pageSize.getHeight() - 2 * marginY;
-
-    const maxCols = Math.floor(pageWidth / (imgWidth + spacingX));
-    const maxRows = Math.floor(pageHeight / (imgHeight + spacingY));
-
-    const total = checkboxes.length;
-
-    // Cálculo ideal de columnas y filas para formar una grilla cuadrada
-    let idealCols = Math.ceil(Math.sqrt(total));
-    let idealRows = Math.ceil(total / idealCols);
-
-    // Asegurarse que no se exceda del espacio disponible
-    const cols = Math.min(idealCols, maxCols);
-    const rows = Math.min(Math.ceil(total / cols), maxRows);
-
-    let currentCol = 0;
-    let currentRow = 0;
-
-    for (let i = 0; i < total; i++) {
-        const id = checkboxes[i].value;
-        const preview = document.getElementById('preview-' + id);
-        if (!preview) continue;
-
-        const canvas = await html2canvas(preview, {
-            backgroundColor: '#000',
-            scale: renderScale
-        });
-        const imgData = canvas.toDataURL('image/png');
-
-        const x = marginX + currentCol * (imgWidth + spacingX);
-        const y = marginY + currentRow * (imgHeight + spacingY);
-
-        pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
-
-        currentCol++;
-        if (currentCol >= cols) {
-            currentCol = 0;
-            currentRow++;
-            if (currentRow >= rows && i < total - 1) {
-                pdf.addPage();
-                currentRow = 0;
-            }
-        }
-    }
-
-    pdf.save("previews.pdf");
-    document.getElementById('loadingExport').style.display = 'none';
+// Funciones para la sidebar
+function abrirSidebar() {
+    document.getElementById('sidebarWidget').classList.add('active');
+}
+function cerrarSidebar() {
+    document.getElementById('sidebarWidget').classList.remove('active');
 }
 
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Renderizar todas las previsualizaciones de plantillas
+    document.querySelectorAll('.plantilla-preview-wrapper').forEach(wrapper => {
+        const templateDataAttr = wrapper.getAttribute('data-template-data');
+        if (templateDataAttr) {
+            try {
+                const templateData = JSON.parse(templateDataAttr);
+                const previewContainer = wrapper.querySelector('.plantilla-preview-container');
+                if (previewContainer) {
+                    window.renderizarPlantilla(previewContainer, templateData, 'white');
+                }
+            } catch (e) {
+                console.error('Error al renderizar la vista previa en pedidos.php:', e);
+            }
+        }
+    });
+
+    // 2. Lógica para el botón de exportar a PDF
+    const exportButton = document.getElementById('exportarPDF');
+    if (exportButton) {
+        exportButton.addEventListener('click', () => {
+            const seleccionados = document.querySelectorAll('.select-preview:checked');
+            if (seleccionados.length === 0) {
+                alert('Por favor, selecciona al menos un pedido para exportar.');
+                return;
+            }
+
+            const ids = Array.from(seleccionados).map(cb => cb.value);
+            const url = `preparar_pdf.php?pedidos=${ids.join(',')}`;
+            
+            window.open(url, '_blank');
+        });
+    }
+});
 </script>
 
-<!-- Loader de exportación -->
-<div id="loadingExport" style="
-    display:none;
-    position:fixed;
-    top:0; left:0; width:100vw; height:100vh;
-    background:rgba(0,0,0,0.5);
-    z-index:9999;
-    justify-content:center;
-    align-items:center;
-    color:white;
-    font-size:20px;
-    font-family: Roboto, sans-serif;">
-  <div>
-    🖨️ Generando PDF, por favor esperá...
-  </div>
-</div>
+</body>
+</html>
