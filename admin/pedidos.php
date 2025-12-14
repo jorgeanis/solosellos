@@ -224,6 +224,7 @@ function cerrarSidebar() {
 
 <h2>Pedidos Recibidos</h2>
 <button id="exportarPDF" style="margin-bottom: 15px; padding: 8px 12px;">📄 Exportar seleccionados a PDF</button>
+<button id="eliminarSeleccionados" style="margin-bottom: 15px; padding: 8px 12px; background-color: #c0392b; color: white; border-color: #c0392b;">🗑️ Eliminar seleccionados</button>
 
 <table>
     <thead>
@@ -437,6 +438,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    // 4. Lógica para el botón de eliminar seleccionados
+    const deleteSelectedButton = document.getElementById('eliminarSeleccionados');
+    if (deleteSelectedButton) {
+        deleteSelectedButton.addEventListener('click', () => {
+            const seleccionados = document.querySelectorAll('.select-preview:checked');
+            if (seleccionados.length === 0) {
+                alert('Por favor, selecciona al menos un pedido para eliminar.');
+                return;
+            }
+
+            if (confirm(`¿Estás seguro de que deseas eliminar ${seleccionados.length} pedidos seleccionados?`)) {
+                const ids = Array.from(seleccionados).map(cb => cb.value);
+                const url = `eliminar_pedidos_seleccionados.php?ids=${ids.join(',')}`;
+                window.location.href = url;
+            }
+        });
+    }
 });
 </script>
 
