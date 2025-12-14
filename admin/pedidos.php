@@ -49,27 +49,9 @@ $offset = ($page - 1) * $per_page;
 
 // --- GET ORDERS for current page ---
 $sql = "SELECT orders.*, users.whatsapp, users.link_code, models.image AS model_image FROM orders JOIN models ON orders.model_id = models.id
-JOIN users ON orders.user_id = users.id WHERE $condiciones ORDER BY id DESC LIMIT :limit OFFSET :offset";
+JOIN users ON orders.user_id = users.id WHERE $condiciones ORDER BY id DESC LIMIT " . (int)$per_page . " OFFSET " . (int)$offset;
 
 $stmt = $pdo->prepare($sql);
-
-// Bind params for conditions
-$param_idx = 1;
-foreach ($params as $value) {
-    $stmt->bindValue($param_idx++, $value);
-}
-
-// Bind limit and offset
-$stmt->bindValue(':limit', $per_page, PDO::PARAM_INT);
-$stmt->bindValue(':offset', '0', PDO::PARAM_INT); // It seems there's an issue with named and positional placeholders. Let's try with positional for now.
-
-// Rebuild sql with '?' placeholders for limit/offset
-$sql = "SELECT orders.*, users.whatsapp, users.link_code, models.image AS model_image FROM orders JOIN models ON orders.model_id = models.id
-JOIN users ON orders.user_id = users.id WHERE $condiciones ORDER BY id DESC LIMIT ? OFFSET ?";
-$stmt = $pdo->prepare($sql);
-$params[] = $per_page;
-$params[] = $offset;
-
 $stmt->execute($params);
 $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
