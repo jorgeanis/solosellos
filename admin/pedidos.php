@@ -184,6 +184,48 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['pedido_id'], $_POST['
     margin-top: 10px;
 }
 
+/* FAB styles */
+.fab-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column; /* Stack buttons vertically */
+    gap: 10px; /* Space between buttons */
+    z-index: 1000; /* Ensure it stays on top */
+}
+
+.fab-container button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px; /* Standard FAB size */
+    height: 56px; /* Standard FAB size */
+    border-radius: 50%; /* Make it round */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Floating effect */
+    border: none;
+    cursor: pointer;
+    font-size: 24px; /* Adjust emoji size */
+    color: white; /* Default text color (emojis usually don't inherit this well, but for consistency) */
+    padding: 0; /* Remove default padding */
+    transition: all 0.3s ease;
+    text-decoration: none; /* For the link-like buttons */
+}
+
+/* Specific styles for each button to override default */
+#exportarPDF {
+    background-color: #3498db; /* Blue */
+}
+
+#eliminarSeleccionados {
+    background-color: #e74c3c; /* Red */
+}
+
+.fab-container button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
 </style>
 
 <!-- Botón tipo pestaña -->
@@ -223,8 +265,11 @@ function cerrarSidebar() {
 
 
 <h2>Pedidos Recibidos</h2>
-<button id="exportarPDF" style="margin-bottom: 15px; padding: 8px 12px;">📄 Exportar seleccionados a PDF</button>
-<button id="eliminarSeleccionados" style="margin-bottom: 15px; padding: 8px 12px; background-color: #c0392b; color: white; border-color: #c0392b;">🗑️ Eliminar seleccionados</button>
+
+<div class="fab-container">
+    <button id="exportarPDF" title="Exportar seleccionados a PDF">📄</button>
+    <button id="eliminarSeleccionados" title="Eliminar seleccionados">🗑️</button>
+</div>
 
 <table>
     <thead>
