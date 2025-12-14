@@ -75,11 +75,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['pedido_id'], $_POST['
 .plantilla-preview-wrapper {
     position: relative;
     width: 380px;
-    height: 140px;
+    height: 100px;
     border: 1px solid #ddd;
     border-radius: 5px;
     background-color: #000; /* Fondo negro */
-    transform: scale(0.5); /* Ajustado para caber en la tabla */
+    transform: scale(0.6); /* Ajustado para caber en la tabla */
     transform-origin: top left; /* Necesario para la escala */
 }
 .plantilla-preview-wrapper .plantilla-preview-container {
@@ -249,7 +249,7 @@ function cerrarSidebar() {
             ?>
             <td><a href="https://wa.me/<?= $whatsapp_link_number ?>" target="_blank" style="font-size:20px; text-decoration:none;">📱</a></td>
             <td><?= $order['email'] ?></td>
-            <td><img src="../assets/images/<?= $order['model_image'] ?>" style="max-height:60px; display:block; margin:auto;"></td>
+            <td><img src="../assets/images/<?= $order['model_image'] ?>" style="max-height:40px; display:block; margin:auto;"></td>
             <td>
                     <?php
                     // Preparar datos para el renderizador (esto ya estaba bien, lo mantengo)
