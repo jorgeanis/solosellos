@@ -31,6 +31,18 @@ if (!empty($busqueda)) {
 
 require_once 'includes/db.php';
 
+// --- GET CUSTOM STATUSES for the current user ---
+$stmt_statuses = $pdo->prepare("SELECT * FROM custom_statuses WHERE user_id = ? ORDER BY display_order ASC, status_name ASC");
+$stmt_statuses->execute([$_SESSION['user']['id']]);
+$custom_statuses = $stmt_statuses->fetchAll(PDO::FETCH_ASSOC);
+
+// Create a lookup array for status colors for easy access
+$status_colors = [];
+foreach ($custom_statuses as $status) {
+    $status_colors[$status['status_name']] = $status['color'];
+}
+
+
 // --- PAGINATION ---
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 if ($page < 1) $page = 1;
@@ -92,17 +104,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['pedido_id'], $_POST['
 }
 .plantilla-preview-wrapper {
     position: relative;
-    width: 380px;
-    height: 100px;
+    width: 194px;  /* 404px * 0.48 */
+    height: 80px;  /* 164px * 0.48 */
     border: 1px solid #ddd;
     border-radius: 5px;
     background-color: #000; /* Fondo negro */
-    transform: scale(0.6); /* Ajustado para caber en la tabla */
-    transform-origin: top left; /* Necesario para la escala */
+    overflow: hidden;
 }
 .plantilla-preview-wrapper .plantilla-preview-container {
     border-color: #ccc; /* Borde gris claro */
     background: #000; /* Fondo negro para el contenedor interior */
+    transform: scale(0.48);
+    transform-origin: top left;
 }
 .preview {
     transform: scale(0.5);
@@ -125,7 +138,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['pedido_id'], $_POST['
 }
 
 .preview-wrapper {
-    width: 270px; /* To contain the scaled plantilla-preview-wrapper (266px) */
+    width: 105px; /* To contain the scaled plantilla-preview-wrapper (100px) */
     height: 100px; /* To contain the scaled plantilla-preview-wrapper (98px) */
     /* Removed overflow: hidden; */
     justify-content: center;
@@ -226,6 +239,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['pedido_id'], $_POST['
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
 }
 
+table td {
+    padding: 2px 8px; /* Reducir el padding vertical y horizontal */
+}
 </style>
 
 <!-- Botón tipo pestaña -->
@@ -238,9 +254,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['pedido_id'], $_POST['
         <label><strong>Estado:</strong></label>
         <select name="estado">
             <option value="todos" <?= $filtro === 'todos' ? 'selected' : '' ?>>Todos</option>
-            <option value="En preparación" <?= $filtro === 'En preparación' ? 'selected' : '' ?>>En preparación</option>
-            <option value="Entregado" <?= $filtro === 'Entregado' ? 'selected' : '' ?>>Entregado</option>
-            <option value="Pagado" <?= $filtro === 'Pagado' ? 'selected' : '' ?>>Pagado</option>
+            <?php foreach ($custom_statuses as $status): ?>
+                <option value="<?= htmlspecialchars($status['status_name']) ?>" <?= $filtro === $status['status_name'] ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($status['status_name']) ?>
+                </option>
+            <?php endforeach; ?>
         </select>
         <label><strong>Texto o nombre:</strong></label>
         <input type="text" name="buscar" value="<?= htmlspecialchars($busqueda) ?>">
@@ -278,24 +296,23 @@ function cerrarSidebar() {
             <th>#</th>
             <th>Cliente</th>
             <th>📱</th>
-            <th>Email</th>
+            <th>Dirección</th>
             <th>Modelo</th>
             <th>Preview</th>
-            <th>Ver</th>
+            
             <th>Estado</th>
             <th>Fecha</th>
-            <th>Acciones</th>
+            <th style="width: 140px;">Acciones</th>
         </tr>
     </thead>
     <tbody>
     <?php foreach ($orders as $order): ?>
         <?php
-            $bg = ($order['status'] === 'Entregado') ? '#e6f9ec' : (($order['status'] === 'Pagado') ? '#e6f0ff' : '#fff9e6');
+            $bg = $status_colors[$order['status']] ?? '#FFFFFF'; // Default to white if status not found
             $styles = json_decode($order["styles"], true);
         ?>
         <?php
-    $bg = ($order['status'] === 'Entregado') ? '#e6f9ec' :
-          (($order['status'] === 'Pagado') ? '#e6f0ff' : '#fff9e6');
+    $bg = $status_colors[$order['status']] ?? '#FFFFFF'; // Default to white if status not found
 ?>
 <tr style="background-color: <?= $bg ?>;">
             <td><input type="checkbox" class="select-preview" value="<?= $order['id'] ?>"></td>
@@ -312,8 +329,11 @@ function cerrarSidebar() {
                 $whatsapp_link_number = '+' . $cleaned_phone;
             }
             ?>
-            <td><a href="https://wa.me/<?= $whatsapp_link_number ?>" target="_blank" style="font-size:20px; text-decoration:none;">📱</a></td>
-            <td><?= $order['email'] ?></td>
+            <td>
+                <a href="https://wa.me/<?= $whatsapp_link_number ?>" target="_blank" style="font-size:20px; text-decoration:none;">📱</a>
+                <?= htmlspecialchars($order['phone']) ?>
+            </td>
+            <td><?= $order['address'] ?></td>
             <td><img src="../assets/images/<?= $order['model_image'] ?>" style="max-height:40px; display:block; margin:auto;"></td>
             <td>
                     <?php
@@ -348,24 +368,25 @@ function cerrarSidebar() {
             </td>
             
             <td>
-                <div style="text-align: center;">
-                    <a href="../public/thanks.php?order=<?= htmlspecialchars($order['order_code'] ?? '') ?>&u=<?= htmlspecialchars($order['link_code'] ?? '') ?>" target="_blank" title="Ver Pedido">
-                        👁️
-                    </a>
-                </div>
-            </td>
-            <td>
                 <form method="POST" style="margin:0;">
                     <input type="hidden" name="pedido_id" value='<?= $order["id"] ?>'>
                     <select name="nuevo_estado" onchange="this.form.submit()">
-                        <option <?= $order['status'] === 'En preparación' ? 'selected' : '' ?>>En preparación</option>
-                        <option <?= $order['status'] === 'Entregado' ? 'selected' : '' ?>>Entregado</option>
-                        <option <?= $order['status'] === 'Pagado' ? 'selected' : '' ?>>Pagado</option>
+                        <?php foreach ($custom_statuses as $status): ?>
+                            <option value="<?= htmlspecialchars($status['status_name']) ?>" <?= $order['status'] === $status['status_name'] ? 'selected' : '' ?> style="background-color: <?= htmlspecialchars($status['color']) ?>;">
+                                <?= htmlspecialchars($status['status_name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                        <?php if (empty($custom_statuses)): ?>
+                            <option><?= htmlspecialchars($order['status']) ?></option>
+                        <?php endif; ?>
                     </select>
                 </form>
             </td>
             <td><?= date('d/m/Y H:i', strtotime($order['created_at'])) ?></td>
-            <td style="text-align: center;">
+            <td style="text-align: center; width: 140px;">
+                <a href="../public/thanks.php?order=<?= htmlspecialchars($order['order_code'] ?? '') ?>&u=<?= htmlspecialchars($order['link_code'] ?? '') ?>" target="_blank" title="Ver Pedido" style="text-decoration:none; color: #3498db; margin-right: 10px; font-size: 20px;">
+                    👁️
+                </a>
                 <a href="../public/index.php?u=<?= htmlspecialchars($order['link_code']) ?>&order_id=<?= $order['id'] ?>" target="_blank" title="Modificar Pedido" style="text-decoration:none; color: #2c3e50; margin-right: 10px; font-size: 20px;">
                     ✏️
                 </a>

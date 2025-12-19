@@ -2,6 +2,38 @@
 require_once 'includes/auth.php';
 require_once 'includes/header.php';
 
+// --- STATUS MANAGEMENT LOGIC ---
+$user_id = $_SESSION['user']['id'];
+
+// Handle Delete Status
+if (isset($_GET['delete_status'])) {
+    $status_id_to_delete = $_GET['delete_status'];
+    $stmt = $pdo->prepare("DELETE FROM custom_statuses WHERE id = ? AND user_id = ?");
+    $stmt->execute([$status_id_to_delete, $user_id]);
+    // Redirect to avoid re-deleting on refresh
+    header("Location: personalizar.php");
+    exit;
+}
+
+// Handle Add Status
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['add_status'])) {
+    $new_status_name = $_POST['new_status_name'] ?? '';
+    $new_status_color = $_POST['new_status_color'] ?? '#FFFFFF';
+    if (!empty($new_status_name)) {
+        $stmt = $pdo->prepare("INSERT INTO custom_statuses (user_id, status_name, color) VALUES (?, ?, ?)");
+        $stmt->execute([$user_id, $new_status_name, $new_status_color]);
+    }
+    // Redirect to show the new status and clear POST
+    header("Location: personalizar.php");
+    exit;
+}
+
+// Fetch existing statuses
+$stmt = $pdo->prepare("SELECT * FROM custom_statuses WHERE user_id = ? ORDER BY display_order ASC, status_name ASC");
+$stmt->execute([$user_id]);
+$custom_statuses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// --- END STATUS MANAGEMENT LOGIC ---
+
 $success_message   = '';
 $error_message     = '';
 $password_success  = '';
@@ -9,7 +41,19 @@ $password_error    = '';
 $show_password_modal = false;
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    if (isset($_POST['password_change'])) {
+    // Handle status add form submission, check for a specific name
+    if (isset($_POST['add_status'])) {
+        $new_status_name = trim($_POST['new_status_name'] ?? '');
+        $new_status_color = $_POST['new_status_color'] ?? '#FFFFFF';
+        if (!empty($new_status_name)) {
+            $stmt = $pdo->prepare("INSERT INTO custom_statuses (user_id, status_name, color) VALUES (?, ?, ?)");
+            $stmt->execute([$user_id, $new_status_name, $new_status_color]);
+            header("Location: personalizar.php"); // Redirect to prevent form resubmission
+            exit;
+        }
+    }
+    // Check for password change form submission
+    elseif (isset($_POST['password_change'])) {
         $show_password_modal = true;
         $current = $_POST['current_password'] ?? '';
         $new     = $_POST['new_password'] ?? '';
@@ -30,7 +74,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         } else {
             $password_error = 'Las nuevas contraseñas no coinciden.';
         }
-    } else {
+    } 
+    // Handle the main form submission
+    else {
         $color = $_POST['color_primary'];
         $email = $_POST['email'] ?? '';
         $name  = $_POST['name'] ?? '';
@@ -50,6 +96,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $stmt = $pdo->prepare("UPDATE users SET name = ?, email = ?, color_primary = ?, color_secundary = ?, logo = ?, footer = ?, whatsapp = ?, background_image = ?, welcome = ? WHERE id = ?");
         $stmt->execute([$name, $email, $color, $color_secundary, $logo, $footer, $whatsapp, $background_image, $welcome, $_SESSION['user']['id']]);
 
+        // Update session variables
         $_SESSION['user']['color_primary'] = $color;
         $_SESSION['user']['logo']  = $logo;
         $_SESSION['user']['footer'] = $footer;
@@ -85,17 +132,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     <button type="button" onclick="openPasswordModal()">Cambiar contraseña</button><br><br>
 
-
 <div style="display: flex; gap: 40px; align-items: flex-start; margin-bottom: 15px;">
         <div>
             <label>Color primario:</label><br>
-            <input type="color" name="color_primary" id="color_primary" value="<?= $_SESSION['user']['color_primary'] ?>"><br>
-            <div style="width: 40px; height: 20px; background: <?= $_SESSION['user']['color_primary'] ?>; border: 1px solid #ccc; margin-top: 5px;"></div>
+            <input type="color" name="color_primary" id="color_primary" value="<?= $_SESSION['user']['color_primary'] ?>" style="width: 50px; height: 35px; padding: 2px; margin:0; border-radius: 5px;">
         </div>
         <div>
             <label>Color secundario:</label><br>
-            <input type="color" name="color_secundary" id="color_secundary" value="<?= $_SESSION['user']['color_secundary'] ?>"><br>
-            <div style="width: 40px; height: 20px; background: <?= $_SESSION['user']['color_secundary'] ?>; border: 1px solid #ccc; margin-top: 5px;"></div>
+            <input type="color" name="color_secundary" id="color_secundary" value="<?= $_SESSION['user']['color_secundary'] ?>" style="width: 50px; height: 35px; padding: 2px; margin:0; border-radius: 5px;">
         </div>
     </div>
 </div>
@@ -117,6 +161,37 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 </div>
 
 </div>
+
+<!-- Status Management Section -->
+<div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ccc;">
+    <h3>Gestionar Estados de Pedidos</h3>
+    
+    <!-- Display Existing Statuses -->
+    <div>
+        <?php foreach ($custom_statuses as $status): ?>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                <div style="width: 20px; height: 20px; background-color: <?= htmlspecialchars($status['color']) ?>; border: 1px solid #000;"></div>
+                <span><?= htmlspecialchars($status['status_name']) ?></span>
+                <a href="personalizar.php?delete_status=<?= $status['id'] ?>" onclick="return confirm('¿Estás seguro de que deseas eliminar este estado?');" style="color: red; text-decoration: none;">[Eliminar]</a>
+            </div>
+        <?php endforeach; ?>
+        <?php if (empty($custom_statuses)): ?>
+            <p>No has añadido ningún estado personalizado.</p>
+        <?php endif; ?>
+    </div>
+
+    <!-- Add New Status Form -->
+    <div style="margin-top: 20px;">
+        <h4>Añadir Nuevo Estado</h4>
+        <div style="display: flex; gap: 15px; align-items: center;">
+             <input type="text" name="new_status_name" placeholder="Nombre del estado" style="width: 200px; margin:0;">
+             <input type="color" name="new_status_color" value="#e6f0ff" style="width: 50px; height: 35px; padding: 2px; margin:0;">
+             <button type="submit" name="add_status" style="width: auto; margin:0;">Añadir Estado</button>
+        </div>
+    </div>
+</div>
+<!-- End Status Management Section -->
+
 <div style="margin-top: 20px;">
   <label><strong>Elegí un fondo para tu sitio:</strong></label>
   <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:15px;">
@@ -179,48 +254,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
   </div>
 </div>
 
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-    const inputPrimary = document.getElementById("color_primary");
-    const inputSecondary = document.getElementById("color_secundary");
-    const previewPrimary = document.getElementById("preview_primary");
-    const previewSecondary = document.getElementById("preview_secondary");
-
-    if (inputPrimary && previewPrimary) {
-        inputPrimary.addEventListener("input", function() {
-            previewPrimary.style.backgroundColor = inputPrimary.value;
-        });
-    }
-
-    if (inputSecondary && previewSecondary) {
-        inputSecondary.addEventListener("input", function() {
-            previewSecondary.style.backgroundColor = inputSecondary.value;
-        });
-    }
-});
-</script>
 
 
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-    const inputPrimary = document.querySelector("input[name='color_primary']");
-    const inputSecondary = document.querySelector("input[name='color_secundary']");
-    const previewPrimary = document.getElementById("preview_primary");
-    const previewSecondary = document.getElementById("preview_secondary");
 
-    if (inputPrimary && previewPrimary) {
-        inputPrimary.addEventListener("input", function() {
-            previewPrimary.style.backgroundColor = inputPrimary.value;
-        });
-    }
 
-    if (inputSecondary && previewSecondary) {
-        inputSecondary.addEventListener("input", function() {
-            previewSecondary.style.backgroundColor = inputSecondary.value;
-        });
-    }
-});
-</script>
 
 <!-- Quill editor -->
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
