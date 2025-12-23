@@ -13,6 +13,7 @@ $stmt = $pdo->prepare("
     SELECT o.*, 
            u.name AS admin_name, u.email AS admin_email, u.logo AS admin_logo,
            u.footer AS admin_footer, u.whatsapp AS admin_whatsapp, u.color_primary AS color,
+           u.referral_active,
            m.title AS model_title, m.description AS model_description, m.image AS model_image,
            t.nombre AS template_name
     FROM orders o
@@ -58,20 +59,33 @@ if (isset($custom_styles['fuente']) && is_array($custom_styles['fuente'])) {
         }
     }
 }
-$fonts_to_load = array_unique($fonts_to_load);
+    $fonts_to_load = array_unique($fonts_to_load);
 
-$google_fonts_url = '';
-if (!empty($fonts_to_load)) {
-    $font_families = [];
-    foreach ($fonts_to_load as $font) {
-        $font_families[] = 'family=' . urlencode($font) . ':wght@400;700';
+    $google_fonts_url = '';
+    if (!empty($fonts_to_load)) {
+        $font_families = [];
+        foreach ($fonts_to_load as $font) {
+            $font_families[] = 'family=' . urlencode($font) . ':wght@400;700';
+        }
+        $google_fonts_url = 'https://fonts.googleapis.com/css2?' . implode('&', $font_families) . '&display=swap';
     }
-    $google_fonts_url = 'https://fonts.googleapis.com/css2?' . implode('&', $font_families) . '&display=swap';
-}
+
+    // Check referral status for this user
+    $referral_active = $order['referral_active'] ?? 0;
+    $referral_link = "";
+    if ($referral_active) {
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+        $domainName = $_SERVER['HTTP_HOST']; // e.g., localhost or domain.com
+        // Construct path relative to public/thanks.php -> public/index.php
+        $scriptPath = dirname($_SERVER['PHP_SELF']); 
+        // If scriptPath ends in /public, we are good.
+        $baseUrl = $protocol . $domainName . str_replace('/thanks.php', '/index.php', $_SERVER['PHP_SELF']);
+        
+        $referral_link = $baseUrl . "?u=" . $link_code . "&ref=" . $order_code;
+    }
 ?>
 <!DOCTYPE html>
-<html lang="es">
-<head>
+<html lang="es"><head>
     <meta charset="UTF-8">
     <title>¡Gracias por tu pedido!</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -212,7 +226,7 @@ if (!empty($fonts_to_load)) {
             <h1>¡Gracias por tu pedido!</h1>
         </div>
         <div class="card-body">
-            <p>Hemos recibido tu pedido correctamente. Nos pondremos en contacto contigo a la brevedad.</p>
+            <p>Hemos recibido tu pedido correctamente con el número: <strong style="font-size: 1.1em;"><?php echo $order['id']; ?></strong>, por favor presiona el botón verde para volver al WhatsApp.</p>
 
                 <div class="preview-section">
                 
@@ -226,6 +240,30 @@ if (!empty($fonts_to_load)) {
                     ?>
                 </div>
             </div>
+
+            <div style="text-align: center;">
+                <a href="https://wa.me/+549<?= preg_replace('/[^0-9]/', '', $order['admin_whatsapp']) ?>?text=Hola!%20Acabo%20de%20realizar%20el%20pedido%20nro%20<?= $order['id'] ?>" 
+                   class="whatsapp-button" target="_blank">
+                   Volver al Whatsapp
+                </a>
+            </div>
+
+            <?php if ($referral_active && !empty($referral_link)): ?>
+            <div style="margin-top: 30px; background: #e8f5e9; border: 1px dashed #2ecc71; padding: 20px; border-radius: 10px; text-align: center;">
+                <h3 style="color: #27ae60; margin-top: 0;">🎁 ¡Regala un descuento!</h3>
+                <p style="margin-bottom: 15px;">Comparte este enlace con tus amigos. Si compran usándolo, obtendrán un descuento especial.</p>
+                <div style="background: white; padding: 10px; border: 1px solid #ccc; border-radius: 5px; word-break: break-all; font-family: monospace; font-size: 14px; margin-bottom: 10px;">
+                    <?= $referral_link ?>
+                </div>
+                <button onclick="navigator.clipboard.writeText('<?= $referral_link ?>'); alert('Enlace copiado!');" style="background: #27ae60; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                    Copiar enlace
+                </button>
+                <a href="https://wa.me/?text=¡Hola!%20Te%20regalo%20un%20descuento%20para%20tu%20sello%20personalizado.%20Usá%20este%20link:%20<?= urlencode($referral_link) ?>" target="_blank" style="display: inline-block; margin-left: 10px; background: #25D366; color: white; text-decoration: none; padding: 8px 15px; border-radius: 5px; font-weight: bold;">
+                    Compartir en WhatsApp
+                </a>
+            </div>
+            <?php endif; ?>
+
             <div class="info-grid">
                 <div class="info-item">
                     <strong>Nombre:</strong> <?= htmlspecialchars($order["name"]) ?> <?= htmlspecialchars($order["lastname"]) ?>
@@ -248,13 +286,14 @@ if (!empty($fonts_to_load)) {
                 <div class="info-item">
                     <strong>Plantilla:</strong> <?= htmlspecialchars($order['template_name']) ?>
                 </div>
-            </div>
-
-            <div style="text-align: center;">
-                <a href="https://wa.me/<?= preg_replace('/[^0-9]/', '', $order['admin_whatsapp']) ?>?text=Hola!%20Acabo%20de%20realizar%20el%20pedido%20nro%20<?= $order['id'] ?>" 
-                   class="whatsapp-button" target="_blank">
-                   Contactar por WhatsApp
-                </a>
+                <div class="info-item">
+                    <strong>Importe:</strong> $<?= number_format($order['price'], 2) ?>
+                </div>
+                <?php if (!empty($order['comments'])): ?>
+                <div class="info-item" style="grid-column: 1 / -1;">
+                    <strong>Indicaciones:</strong> <?= nl2br(htmlspecialchars($order['comments'])) ?>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>

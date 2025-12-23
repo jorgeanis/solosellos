@@ -281,10 +281,92 @@ function cerrarSidebar() {
 }
 </script>
 
+<?php
+$view = $_GET['view'] ?? 'pedidos'; // Default to 'pedidos' view
+?>
+
+<div class="view-switcher" style="margin-bottom: 20px; border-bottom: 1px solid #ccc;">
+    <a href="?view=pedidos" style="display: inline-block; padding: 10px 15px; text-decoration:none; color: <?= $view === 'pedidos' ? '#1abc9c' : '#333' ?>; font-weight: <?= $view === 'pedidos' ? 'bold' : 'normal' ?>; border-bottom: 2px solid <?= $view === 'pedidos' ? '#1abc9c' : 'transparent' ?>;">Pedidos</a>
+    <a href="?view=exportaciones" style="display: inline-block; padding: 10px 15px; text-decoration:none; color: <?= $view === 'exportaciones' ? '#1abc9c' : '#333' ?>; font-weight: <?= $view === 'exportaciones' ? 'bold' : 'normal' ?>; border-bottom: 2px solid <?= $view === 'exportaciones' ? '#1abc9c' : 'transparent' ?>;">Exportaciones Guardadas</a>
+</div>
+
+<?php if ($view === 'exportaciones'): ?>
+
+    <?php
+    // --- FETCH EXPORT BATCHES ---
+    $stmt_batches = $pdo->prepare("SELECT * FROM export_batches WHERE user_id = ? ORDER BY export_date DESC");
+    $stmt_batches->execute([$_SESSION['user']['id']]);
+    $export_batches = $stmt_batches->fetchAll(PDO::FETCH_ASSOC);
+    ?>
+    
+    <h2>Exportaciones Guardadas</h2>
+    
+    <?php if (empty($export_batches)): ?>
+        <p>No has guardado ninguna exportación todavía.</p>
+    <?php else: ?>
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha de Exportación</th>
+                    <th style="width: 200px;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($export_batches as $batch): ?>
+                    <tr>
+                        <td>
+                            <?php
+                                try {
+                                    $utc_date = new DateTime($batch['export_date'], new DateTimeZone('UTC'));
+                                    $utc_date->setTimezone(new DateTimeZone('America/Argentina/Buenos_Aires'));
+                                    echo $utc_date->format('d/m/Y H:i:s');
+                                } catch (Exception $e) {
+                                    echo date('d/m/Y H:i:s', strtotime($batch['export_date']));
+                                }
+                            ?>
+                        </td>
+                        <td>
+                            <div style="display: flex; flex-direction: row; justify-content: space-around; align-items: center;">
+                                <a href="preparar_pdf.php?batch_id=<?= $batch['id'] ?>" target="_blank" title="Editar" style="text-decoration:none; color: #2c3e50; font-size: 20px;">✏️</a>
+                                
+                                <button class="preview-btn" 
+                                        title="Vista Previa" 
+                                        style="background:none; border:none; cursor:pointer; color: #3498db; font-size: 20px; padding:0; vertical-align:middle;"
+                                        data-layout='<?= htmlspecialchars($batch['layout_state'] ?? 'null') ?>'>
+                                    👁️
+                                </button>
+
+                                <a href="eliminar_exportacion.php?id=<?= $batch['id'] ?>" 
+                                   title="Eliminar" 
+                                   onclick="return confirm('¿Estás seguro de que deseas eliminar esta exportación guardada? Esta acción no se puede deshacer.');" 
+                                   style="text-decoration:none; color: #c0392b; font-size: 20px;">
+                                   🗑️
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    <?php endif; ?>
+
+    <!-- Modal for Preview -->
+    <div id="previewModal" style="display:none; position:fixed; z-index:2000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.6); justify-content:center; align-items:center;">
+        <div id="modalContent" style="background:#fff; padding:20px; border-radius:8px; position:relative; width: 250px; height: 350px;">
+            <span id="closeModal" style="position:absolute; top:10px; right:15px; font-size:24px; cursor:pointer;">&times;</span>
+            <h4 style="text-align:center; margin-top:0;">Vista Previa</h4>
+            <div id="previewSheet" style="width:210px; height:297px; background:#f0f0f0; position:relative; border:1px solid #ccc; margin: 10px auto 0;">
+                <!-- Preview items will be injected here by JS -->
+            </div>
+        </div>
+    </div>
+
+<?php else: // This is the 'pedidos' view ?>
 
 <h2>Pedidos Recibidos</h2>
 
 <div class="fab-container">
+    <button id="crearRuta" title="Crear Hoja de Ruta">🗺️</button>
     <button id="exportarPDF" title="Exportar seleccionados a PDF">📄</button>
     <button id="eliminarSeleccionados" title="Eliminar seleccionados">🗑️</button>
 </div>
@@ -297,6 +379,7 @@ function cerrarSidebar() {
             <th>Cliente</th>
             <th>📱</th>
             <th>Dirección</th>
+            <th>Indicaciones</th>
             <th>Modelo</th>
             <th>Preview</th>
             
@@ -334,6 +417,7 @@ function cerrarSidebar() {
                 <?= htmlspecialchars($order['phone']) ?>
             </td>
             <td><?= $order['address'] ?></td>
+            <td><small><?= htmlspecialchars($order['comments'] ?? '') ?></small></td>
             <td><img src="../assets/images/<?= $order['model_image'] ?>" style="max-height:40px; display:block; margin:auto;"></td>
             <td>
                     <?php
@@ -384,15 +468,17 @@ function cerrarSidebar() {
             </td>
             <td><?= date('d/m/Y H:i', strtotime($order['created_at'])) ?></td>
             <td style="text-align: center; width: 140px;">
-                <a href="../public/thanks.php?order=<?= htmlspecialchars($order['order_code'] ?? '') ?>&u=<?= htmlspecialchars($order['link_code'] ?? '') ?>" target="_blank" title="Ver Pedido" style="text-decoration:none; color: #3498db; margin-right: 10px; font-size: 20px;">
-                    👁️
-                </a>
-                <a href="../public/index.php?u=<?= htmlspecialchars($order['link_code']) ?>&order_id=<?= $order['id'] ?>" target="_blank" title="Modificar Pedido" style="text-decoration:none; color: #2c3e50; margin-right: 10px; font-size: 20px;">
-                    ✏️
-                </a>
-                <a href="eliminar_pedido.php?id=<?= $order['id'] ?>" class="delete-link" title="Eliminar Pedido" style="text-decoration:none; color: #c0392b; font-size: 20px;">
-                    🗑️
-                </a>
+                <div style="display: flex; flex-direction: row; justify-content: space-around; align-items: center;">
+                    <a href="../public/thanks.php?order=<?= htmlspecialchars($order['order_code'] ?? '') ?>&u=<?= htmlspecialchars($order['link_code'] ?? '') ?>" target="_blank" title="Ver Pedido" style="text-decoration:none; color: #3498db; font-size: 20px;">
+                        👁️
+                    </a>
+                    <a href="../public/index.php?u=<?= htmlspecialchars($order['link_code']) ?>&order_id=<?= $order['id'] ?>" target="_blank" title="Modificar Pedido" style="text-decoration:none; color: #2c3e50; font-size: 20px;">
+                        ✏️
+                    </a>
+                    <a href="eliminar_pedido.php?id=<?= $order['id'] ?>" class="delete-link" title="Eliminar Pedido" style="text-decoration:none; color: #c0392b; font-size: 20px;">
+                        🗑️
+                    </a>
+                </div>
             </td>
         </tr>
     <?php endforeach; ?>
@@ -493,6 +579,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Lógica para el nuevo botón de Crear Ruta
+    const createRouteButton = document.getElementById('crearRuta');
+    if (createRouteButton) {
+        createRouteButton.addEventListener('click', () => {
+            const seleccionados = document.querySelectorAll('.select-preview:checked');
+            if (seleccionados.length === 0) {
+                alert('Por favor, selecciona al menos un pedido para crear la ruta.');
+                return;
+            }
+            const ids = Array.from(seleccionados).map(cb => cb.value);
+            const url = `preparar_ruta.php?ids=${ids.join(',')}`;
+            window.location.href = url; // Redirigir a la página que procesará la ruta
+        });
+    }
+
     // 3. Add confirmation to delete links
     const deleteLinks = document.querySelectorAll('.delete-link');
     deleteLinks.forEach(link => {
@@ -524,6 +625,93 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 </script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('previewModal');
+    const closeModalBtn = document.getElementById('closeModal');
+    const previewSheet = document.getElementById('previewSheet');
+    const previewButtons = document.querySelectorAll('.preview-btn');
+
+    // --- A4 Dimensions for scaling ---
+    const A4_WIDTH_MM = 210;
+    const A4_HEIGHT_MM = 297;
+    const SHEET_WIDTH_PX = 210;
+    const SHEET_HEIGHT_PX = 297;
+    const MM_TO_PX_RATIO = SHEET_WIDTH_PX / A4_WIDTH_MM;
+
+    previewButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const layoutData = btn.dataset.layout;
+            if (!layoutData || layoutData === 'null') {
+                alert('No hay un diseño guardado para esta exportación.');
+                return;
+            }
+
+            // Clear previous preview
+            previewSheet.innerHTML = '';
+
+            try {
+                const layout = JSON.parse(layoutData);
+                if (!Array.isArray(layout)) return;
+
+                layout.forEach(item => {
+                    const div = document.createElement('div');
+                    div.style.position = 'absolute';
+                    
+                    // Scale position and size from A4 (mm) to preview sheet (px)
+                    const x = item.x * MM_TO_PX_RATIO;
+                    const y = item.y * MM_TO_PX_RATIO;
+                    
+                    let width, height;
+
+                    if (item.is_rect) {
+                        width = (item.width || 0) * MM_TO_PX_RATIO;
+                        height = (item.height || 0) * MM_TO_PX_RATIO;
+                        div.style.backgroundColor = 'rgba(0,0,0,0.7)';
+                    } else {
+                        // Default stamp size is 38x14mm
+                        const baseWidth = 38 * MM_TO_PX_RATIO;
+                        const baseHeight = 14 * MM_TO_PX_RATIO;
+                        const scale = item.scale || 1;
+                        width = baseWidth * scale;
+                        height = baseHeight * scale;
+                        div.style.backgroundColor = 'rgba(0, 123, 255, 0.7)';
+                    }
+                    
+                    div.style.left = `${x}px`;
+                    div.style.top = `${y}px`;
+                    div.style.width = `${width}px`;
+                    div.style.height = `${height}px`;
+                    div.style.transform = `rotate(${item.angle || 0}deg)`;
+                    div.style.border = '1px solid rgba(255,255,255,0.5)';
+                    
+                    previewSheet.appendChild(div);
+                });
+
+                modal.style.display = 'flex';
+            } catch (e) {
+                console.error('Error parsing layout data:', e);
+                alert('El formato del diseño guardado es inválido.');
+            }
+        });
+    });
+
+    // --- Close Modal Logic ---
+    const closeModal = () => {
+        modal.style.display = 'none';
+    };
+
+    closeModalBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeModal();
+        }
+    });
+});
+</script>
+
+<?php endif; ?>
 
 </body>
 </html>

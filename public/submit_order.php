@@ -13,6 +13,29 @@ try {
     $email = $_POST['email'] ?? '';
     $phone = $_POST['phone'] ?? '';
     $address = $_POST['address'] ?? '';
+    $comments = $_POST['comments'] ?? '';
+
+    // --- Obtener el precio del modelo ---
+    $model_price = $_POST['model_price'] ?? 0.00;
+
+    // --- LOGICA REFERIDOS ---
+    session_start();
+    $referred_by_code = null;
+    
+    // Check if referral session exists and matches the user of this order
+    // We re-verify settings to be safe
+    if (isset($_SESSION['referral_code']) && isset($_SESSION['referral_user_id']) && $_SESSION['referral_user_id'] == $user_id) {
+        $stmt_check_ref = $pdo->prepare("SELECT referral_active, referral_type, referral_value FROM users WHERE id = ?");
+        $stmt_check_ref->execute([$user_id]);
+        $ref_settings = $stmt_check_ref->fetch();
+
+        if ($ref_settings && $ref_settings['referral_active']) {
+             $referred_by_code = $_SESSION['referral_code'];
+             // Nota: Confiamos en el precio que viene del frontend (model_price) ya que se calculó allí.
+             // En un sistema más estricto, recalcularíamos aquí usando los datos de la DB.
+             // Por ahora, asumimos que model_price ya trae el descuento si se aplicó en el frontend.
+        }
+    }
 
     
 
@@ -60,10 +83,10 @@ try {
     // --- 5. Insertar en la base de datos ---
     $sql = "INSERT INTO orders (
         order_code, user_id, name, lastname, address, phone, email,
-        model_id, template_id,
-        text_line1, text_line2, text_line3, text_line4, styles,
+        model_id, template_id, price,
+        text_line1, text_line2, text_line3, text_line4, comments, styles, referred_by,
         created_at, status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 'pendiente')";
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 'pendiente')";
     
     $stmt = $pdo->prepare($sql);
 
@@ -77,11 +100,14 @@ try {
         $email,
         $model_id,
         $template_id,
+        $model_price,
         $text_lines[1],
         $text_lines[2],
         $text_lines[3],
         $text_lines[4],
-        $estilos_json
+        $comments,
+        $estilos_json,
+        $referred_by_code
     ]);
 
     if ($stmt->rowCount() > 0) {

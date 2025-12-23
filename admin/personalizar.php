@@ -88,13 +88,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $footer  = $_POST['footer'];
         $logo    = $_SESSION['user']['logo'];
 
+        // Referral Settings
+        $referral_active = isset($_POST['referral_active']) ? 1 : 0;
+        $referral_type = $_POST['referral_type'] ?? 'percent';
+        $referral_value = $_POST['referral_value'] ?? 0.00;
+
         if (!empty($_FILES["logo"]["name"])) {
             $logo = basename($_FILES["logo"]["name"]);
             move_uploaded_file($_FILES["logo"]["tmp_name"], "../assets/images/" . $logo);
         }
 
-        $stmt = $pdo->prepare("UPDATE users SET name = ?, email = ?, color_primary = ?, color_secundary = ?, logo = ?, footer = ?, whatsapp = ?, background_image = ?, welcome = ? WHERE id = ?");
-        $stmt->execute([$name, $email, $color, $color_secundary, $logo, $footer, $whatsapp, $background_image, $welcome, $_SESSION['user']['id']]);
+        $stmt = $pdo->prepare("UPDATE users SET name = ?, email = ?, color_primary = ?, color_secundary = ?, logo = ?, footer = ?, whatsapp = ?, background_image = ?, welcome = ?, referral_active = ?, referral_type = ?, referral_value = ? WHERE id = ?");
+        $stmt->execute([$name, $email, $color, $color_secundary, $logo, $footer, $whatsapp, $background_image, $welcome, $referral_active, $referral_type, $referral_value, $_SESSION['user']['id']]);
 
         // Update session variables
         $_SESSION['user']['color_primary'] = $color;
@@ -106,9 +111,102 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $_SESSION['user']['whatsapp'] = $whatsapp;
         $_SESSION['user']['welcome'] = $welcome;
         $_SESSION['user']['background_image'] = $background_image;
+        $_SESSION['user']['referral_active'] = $referral_active;
+        $_SESSION['user']['referral_type'] = $referral_type;
+        $_SESSION['user']['referral_value'] = $referral_value;
     }
 }
 ?>
+
+<style>
+/* New layout styles */
+.settings-container {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr); /* 12-column grid */
+    gap: 20px;
+    margin-bottom: 20px;
+}
+.settings-card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    padding: 20px;
+    grid-column: span 12; /* Default: full width on small screens */
+}
+/* Spanning rules for specific cards on larger screens */
+@media (min-width: 992px) {
+    #card-perfil { grid-column: span 6; }
+    #card-marca { grid-column: span 6; }
+    #card-estados { grid-column: span 7; }
+    #card-contenido { grid-column: span 5; }
+    #card-fondo { grid-column: span 12; }
+}
+.settings-card h3 {
+    margin-top: 0;
+    border-bottom: 2px solid #1abc9c;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+    font-size: 18px;
+    color: #2c3e50;
+}
+.settings-card label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+.settings-card input[type="text"],
+.settings-card input[type="email"],
+.settings-card textarea {
+    width: 100%;
+    max-width: 400px; /* Constrain max width of text inputs */
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+.settings-card .color-pickers {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+.bg-grid {
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(100px, 1fr));
+    gap:15px;
+}
+.bg-grid label {
+    width: 100px;
+    height: 180px;
+    border: 3px solid transparent;
+    border-radius: 10px;
+    cursor: pointer;
+    position: relative;
+    background-size: cover;
+    background-position: center;
+    transition: border-color 0.2s;
+    display: inline-block;
+}
+.bg-grid input[type='radio'] {
+    opacity: 0;
+}
+.bg-grid input[type='radio']:checked + .bg-image-label {
+    border-color: #1abc9c;
+}
+.main-save-button {
+    background: #1abc9c;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 10px 25px;
+    font-size: 16px;
+    transition: background 0.2s;
+}
+.main-save-button:hover {
+    background: #16a085;
+}
+</style>
 
 <h2>Personalización del sitio</h2>
 <p>
@@ -116,103 +214,132 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 </p>
 
 <form method="POST" enctype="multipart/form-data">
-  <input type="hidden" name="background_image" id="background_image" value="<?= htmlspecialchars($_SESSION['user']['background_image'] ?? '') ?>">
-<div style="display: flex; gap: 40px; align-items: flex-start;">
+    <input type="hidden" name="background_image" id="background_image" value="<?= htmlspecialchars($_SESSION['user']['background_image'] ?? '') ?>">
 
-<div style="width: 50%;">
-    <label>Nombre:</label><br>
-    <input type="text" name="name" value="<?= $_SESSION['user']['name'] ?>"><br><br>
+    <div class="settings-container">
 
-    <label>Número de WhatsApp:</label><br>
-    <input type="text" name="whatsapp" value="<?= $_SESSION['user']['whatsapp'] ?>"><br><br>
+        <!-- Card 1: Perfil y Contacto -->
+        <div class="settings-card" id="card-perfil">
+            <h3>Perfil y Contacto</h3>
+            <label for="name">Nombre:</label>
+            <input type="text" id="name" name="name" value="<?= $_SESSION['user']['name'] ?>"><br><br>
 
-        
-    <label>Email:</label><br>
-    <input type="email" name="email" value="<?= $_SESSION['user']['email'] ?? '' ?>"><br><br>
+            <label for="whatsapp">Número de WhatsApp:</label>
+            <input type="text" id="whatsapp" name="whatsapp" value="<?= $_SESSION['user']['whatsapp'] ?>"><br><br>
 
-    <button type="button" onclick="openPasswordModal()">Cambiar contraseña</button><br><br>
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" value="<?= $_SESSION['user']['email'] ?? '' ?>"><br><br>
 
-<div style="display: flex; gap: 40px; align-items: flex-start; margin-bottom: 15px;">
-        <div>
-            <label>Color primario:</label><br>
-            <input type="color" name="color_primary" id="color_primary" value="<?= $_SESSION['user']['color_primary'] ?>" style="width: 50px; height: 35px; padding: 2px; margin:0; border-radius: 5px;">
+            <button type="button" onclick="openPasswordModal()">Cambiar contraseña</button>
         </div>
-        <div>
-            <label>Color secundario:</label><br>
-            <input type="color" name="color_secundary" id="color_secundary" value="<?= $_SESSION['user']['color_secundary'] ?>" style="width: 50px; height: 35px; padding: 2px; margin:0; border-radius: 5px;">
-        </div>
-    </div>
-</div>
-<div style="width: 50%;">
-   <label>Logo actual:</label><br>
-    <?php if ($_SESSION['user']['logo']): ?>
-        <img src="../assets/images/<?= $_SESSION['user']['logo'] ?>" style="height:120px;"><br>
-    <?php endif; ?>
-    <input type="file" name="logo"><br><br>
 
-    <div>
-        <label><strong>Mensaje de bienvenida:</strong></label><br>
-<textarea name="welcome" rows="4" style="width:100%; margin-bottom:20px; height:50px;"><?php echo htmlspecialchars($_SESSION['user']['welcome'] ?? '', ENT_QUOTES); ?></textarea><br><br>
-</div
+        <!-- Card 2: Marca y Colores -->
+        <div class="settings-card" id="card-marca">
+            <h3>Marca y Colores</h3>
+            <label for="logo">Logo actual:</label>
+            <?php if ($_SESSION['user']['logo']): ?>
+                <img src="../assets/images/<?= $_SESSION['user']['logo'] ?>" style="height:80px; display:block; margin-bottom:10px;"><br>
+            <?php endif; ?>
+            <input type="file" id="logo" name="logo"><br><br>
 
-    <label>Texto del footer:</label><br>
-<div id="editor" style="height:200px;"><?= $_SESSION['user']['footer'] ?? "" ?></div>
-<textarea name="footer" id="footer" name="footer" style="display:none"><?= $_SESSION['user']['footer'] ?? "" ?></textarea><br>
-</div>
-
-</div>
-
-<!-- Status Management Section -->
-<div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ccc;">
-    <h3>Gestionar Estados de Pedidos</h3>
-    
-    <!-- Display Existing Statuses -->
-    <div>
-        <?php foreach ($custom_statuses as $status): ?>
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                <div style="width: 20px; height: 20px; background-color: <?= htmlspecialchars($status['color']) ?>; border: 1px solid #000;"></div>
-                <span><?= htmlspecialchars($status['status_name']) ?></span>
-                <a href="personalizar.php?delete_status=<?= $status['id'] ?>" onclick="return confirm('¿Estás seguro de que deseas eliminar este estado?');" style="color: red; text-decoration: none;">[Eliminar]</a>
+            <label>Colores de la marca:</label>
+            <div class="color-pickers">
+                <div>
+                    <label for="color_primary" style="font-weight:normal;">Primario</label>
+                    <input type="color" name="color_primary" id="color_primary" value="<?= $_SESSION['user']['color_primary'] ?>" style="width: 50px; height: 35px; padding: 2px; border-radius: 5px;">
+                </div>
+                <div>
+                    <label for="color_secundary" style="font-weight:normal;">Secundario</label>
+                    <input type="color" name="color_secundary" id="color_secundary" value="<?= $_SESSION['user']['color_secundary'] ?>" style="width: 50px; height: 35px; padding: 2px; border-radius: 5px;">
+                </div>
             </div>
-        <?php endforeach; ?>
-        <?php if (empty($custom_statuses)): ?>
-            <p>No has añadido ningún estado personalizado.</p>
-        <?php endif; ?>
-    </div>
-
-    <!-- Add New Status Form -->
-    <div style="margin-top: 20px;">
-        <h4>Añadir Nuevo Estado</h4>
-        <div style="display: flex; gap: 15px; align-items: center;">
-             <input type="text" name="new_status_name" placeholder="Nombre del estado" style="width: 200px; margin:0;">
-             <input type="color" name="new_status_color" value="#e6f0ff" style="width: 50px; height: 35px; padding: 2px; margin:0;">
-             <button type="submit" name="add_status" style="width: auto; margin:0;">Añadir Estado</button>
         </div>
-    </div>
-</div>
-<!-- End Status Management Section -->
 
-<div style="margin-top: 20px;">
-  <label><strong>Elegí un fondo para tu sitio:</strong></label>
-  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:15px;">
-    <?php
-      $fondos = glob('../assets/images/bg/*.jpg');
-      $fondo_actual = $_SESSION['user']['background_image'] ?? '';
-      foreach ($fondos as $fondo) {
-    $nombre = basename($fondo);
-    $checked = ($nombre === $fondo_actual) ? 'checked' : '';
-    echo "<label style=\"width: 100px; height: 180px; border: 0px solid #000; border-radius: 10px; cursor: pointer; position: relative; background-size: cover; background-position: center; background-image: url('../assets/images/bg/$nombre'); display: inline-block;\">
-            <input type='radio' name='bg_select' value='$nombre' style='position: absolute; top: 5px; left: 5px;' $checked>
-          </label>";
-}
+        <!-- Card 3: Estados de Pedido -->
+        <div class="settings-card" id="card-estados">
+            <h3>Gestionar Estados de Pedidos</h3>
+            <div>
+                <?php foreach ($custom_statuses as $status): ?>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                        <div style="width: 20px; height: 20px; background-color: <?= htmlspecialchars($status['color']) ?>; border: 1px solid #666; border-radius: 4px;"></div>
+                        <span><?= htmlspecialchars($status['status_name']) ?></span>
+                        <a href="personalizar.php?delete_status=<?= $status['id'] ?>" onclick="return confirm('¿Estás seguro de que deseas eliminar este estado?');" style="color: red; text-decoration: none; margin-left:auto;">[Eliminar]</a>
+                    </div>
+                <?php endforeach; ?>
+                <?php if (empty($custom_statuses)): ?>
+                    <p>No has añadido ningún estado personalizado.</p>
+                <?php endif; ?>
+            </div>
+            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
+                <label for="new_status_name">Añadir Nuevo Estado</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                     <input type="text" id="new_status_name" name="new_status_name" placeholder="Nombre del estado" style="margin:0;">
+                     <input type="color" name="new_status_color" value="#e6f0ff" style="width: 50px; height: 38px; padding: 2px; border-radius:5px; margin:0;">
+                     <button type="submit" name="add_status" style="width: auto; margin:0; padding: 8px 12px; font-size:14px;">Añadir</button>
+                </div>
+            </div>
+        </div>
 
+        <!-- Card 4: Contenido del Sitio -->
+        <div class="settings-card" id="card-contenido">
+            <h3>Contenido del Sitio</h3>
+            <label for="welcome">Mensaje de bienvenida:</label>
+            <textarea id="welcome" name="welcome" rows="3"><?php echo htmlspecialchars($_SESSION['user']['welcome'] ?? '', ENT_QUOTES); ?></textarea><br><br>
 
-    ?>
-  </div>
-</div>
-<br>
+            <label>Texto del footer:</label>
+            <div id="editor" style="height:150px;"><?= $_SESSION['user']['footer'] ?? "" ?></div>
+            <textarea name="footer" id="footer" style="display:none"><?= $_SESSION['user']['footer'] ?? "" ?></textarea>
+        </div>
 
-<button type="submit">Guardar cambios</button>
+        <!-- Card 5: Fondo del Sitio -->
+        <div class="settings-card" id="card-fondo">
+            <h3>Fondo del Sitio</h3>
+            <div class="bg-grid">
+                <?php
+                  $fondos = glob('../assets/images/bg/*.jpg');
+                  $fondo_actual = $_SESSION['user']['background_image'] ?? '';
+                  foreach ($fondos as $fondo) {
+                    $nombre = basename($fondo);
+                    $checked = ($nombre === $fondo_actual) ? 'checked' : '';
+                    echo "<div>
+                            <input type='radio' name='bg_select' value='$nombre' id='bg_$nombre' $checked>
+                            <label for='bg_$nombre' class='bg-image-label' style=\"background-image: url('../assets/images/bg/$nombre');\"></label>
+                          </div>";
+                  }
+                ?>
+            </div>
+        </div>
+
+        <!-- Card 6: Sistema de Referidos -->
+        <div class="settings-card" id="card-referidos" style="grid-column: span 12;">
+            <h3>Sistema de Referidos</h3>
+            <p style="font-size: 14px; color: #666; margin-bottom: 15px;">
+                Configura el sistema de referidos para que tus clientes puedan invitar a otros y obtengan un descuento.
+            </p>
+            
+            <div style="margin-bottom: 15px; display: flex; align-items: center;">
+                <input type="checkbox" id="referral_active" name="referral_active" value="1" <?= !empty($_SESSION['user']['referral_active']) ? 'checked' : '' ?> style="width: auto; margin-right: 10px;">
+                <label for="referral_active" style="margin-bottom: 0; cursor: pointer;">Activar sistema de referidos</label>
+            </div>
+
+            <div style="display: flex; gap: 20px; align-items: flex-start;">
+                <div>
+                    <label for="referral_type">Tipo de descuento</label>
+                    <select name="referral_type" id="referral_type" style="padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
+                        <option value="percent" <?= ($_SESSION['user']['referral_type'] ?? 'percent') === 'percent' ? 'selected' : '' ?>>Porcentaje (%)</option>
+                        <option value="fixed" <?= ($_SESSION['user']['referral_type'] ?? '') === 'fixed' ? 'selected' : '' ?>>Monto Fijo ($)</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="referral_value">Valor del descuento</label>
+                    <input type="number" step="0.01" name="referral_value" id="referral_value" value="<?= htmlspecialchars($_SESSION['user']['referral_value'] ?? '0.00') ?>" style="width: 100px;">
+                </div>
+            </div>
+        </div>
+    </div> 
+
+    <br>
+    <button type="submit" class="main-save-button">Guardar Cambios Generales</button>
 </form>
 
 <style>

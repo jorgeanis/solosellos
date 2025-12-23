@@ -1,5 +1,6 @@
 <?php
 require_once '../admin/includes/db.php';
+session_start(); // Ensure session is started
 
 if (!isset($_GET['u'])) {
     die('Enlace inválido');
@@ -14,6 +15,34 @@ if (!$user) {
     die("El enlace no es válido o el usuario fue desactivado.");
 }
 
+// --- REFERRAL LOGIC START ---
+$referral_code = $_GET['ref'] ?? null;
+$discount_data = null;
+
+// 1. If a code is provided in URL, validate it
+if ($referral_code) {
+    // Check if the referral code exists in orders (it's the order_code of a previous order)
+    // Also ensure the referral system is active for this user (admin)
+    if ($user['referral_active']) {
+        $stmt_ref = $pdo->prepare("SELECT id FROM orders WHERE order_code = ? AND user_id = ?");
+        $stmt_ref->execute([$referral_code, $user['id']]);
+        if ($stmt_ref->fetch()) {
+            // Code is valid! Store in session
+            $_SESSION['referral_code'] = $referral_code;
+            $_SESSION['referral_user_id'] = $user['id']; // To ensure we don't mix up referrals across different admins if multiple exist
+        }
+    }
+}
+
+// 2. Check if a valid referral session exists for THIS user
+if (isset($_SESSION['referral_code']) && isset($_SESSION['referral_user_id']) && $_SESSION['referral_user_id'] == $user['id'] && $user['referral_active']) {
+    $discount_data = [
+        'type' => $user['referral_type'],
+        'value' => $user['referral_value']
+    ];
+}
+// --- REFERRAL LOGIC END ---
+
 $user_id = $user['id'];
 $step = $_GET['step'] ?? null;
 
@@ -21,7 +50,7 @@ $stmt = $pdo->prepare("SELECT * FROM models WHERE user_id = ?");
 $stmt->execute([$user_id]);
 $models = $stmt->fetchAll();
 
-$todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'Raleway', 'Merriweather', 'Nunito', 'Oswald', 'Ubuntu', 'PT Sans', 'Quicksand', 'Work Sans', 'Bebas Neue', 'Archivo', 'Fira Sans', 'Playfair Display', 'Rubik', 'Caveat', 'Dancing Script', 'Shadows Into Light', 'Satisfy', 'Great Vibes', 'Permanent Marker', 'Patrick Hand', 'Gloria Hallelujah', 'Indie Flower', 'Fredoka', 'Josefin Sans', 'Amatic SC'];
+require_once '../admin/includes/fonts.php';
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -29,6 +58,7 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pedido de Sello</title>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAXXtVhQP_A1Ix8lgPtkpwqR6XVzAQLQzs&libraries=places"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/plantilla-preview.css">
     <?php
@@ -440,15 +470,15 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
 
 <div class="container">
 <?php if (!$step): ?>
-  <div class="bienvenida" style="text-align: center; margin: 0 20px;">
-    <h1>¡Bienvenido!</h1>
-    <div class="bienvenida" style="text-align: center; margin-bottom: 20px;">
-      <?= !empty($user['welcome']) ? $user['welcome'] : 'Estás por realizar un pedido de sello personalizado para ' . htmlspecialchars($user['name']) . '.' ?>
+  <div class="form-container" style="text-align: center; margin: 10px; padding: 40px 25px;">
+    <h1 style="color: var(--color-principal); margin-top: 0; font-size: 2em;">¡Bienvenido!</h1>
+    <div style="font-size: 1.1em; line-height: 1.6; color: #555; margin-bottom: 35px;">
+      <?= !empty($user['welcome']) ? nl2br(htmlspecialchars($user['welcome'])) : 'Estás por realizar un pedido de sello personalizado para <strong>' . htmlspecialchars($user['name']) . '</strong>.' ?>
     </div>
     <form action="index.php" method="get">
       <input type="hidden" name="u" value="<?= htmlspecialchars($link_code) ?>">
       <input type="hidden" name="step" value="1">
-      <button type="submit" style="padding:12px 20px; background:var(--color-principal); color:white; border:none; border-radius:8px;">Comenzar pedido</button>
+      <button type="submit" class="boton-siguiente active" style="width: 100%; max-width: 300px; margin: 0 auto; display: block;">Comenzar pedido</button>
     </form>
   </div>
 <?php elseif ($step == 1): ?>
@@ -457,35 +487,67 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
     <input type="hidden" name="u" value="<?= htmlspecialchars($link_code) ?>">
     <input type="hidden" name="step" value="2">
     <input type="hidden" name="model_id" id="model_id">
+    <input type="hidden" name="model_price" id="model_price">
     <div class="modelo-lista">
       <?php foreach ($models as $model): ?>
-        <?php $sin_stock = $model['stock'] == 0; ?>
-        <div class="modelo-card <?= $sin_stock ? 'sin-stock' : '' ?>" <?= !$sin_stock ? 'onclick="seleccionarModelo(this, ' . $model['id'] . ')"' : '' ?>>
+        <?php 
+            $sin_stock = $model['stock'] == 0;
+            $final_price = $model['price'];
+            $has_discount = false;
+            
+            if ($discount_data) {
+                $has_discount = true;
+                if ($discount_data['type'] === 'percent') {
+                    $discount_amount = $model['price'] * ($discount_data['value'] / 100);
+                    $final_price = $model['price'] - $discount_amount;
+                } else { // fixed
+                    $final_price = $model['price'] - $discount_data['value'];
+                }
+                if ($final_price < 0) $final_price = 0;
+            }
+        ?>
+        <div class="modelo-card <?= $sin_stock ? 'sin-stock' : '' ?>" 
+             data-model-id="<?= $model['id'] ?>" 
+             data-price="<?= $final_price ?>"
+             <?= !$sin_stock ? 'onclick="seleccionarModelo(this)"' : '' ?>>
           <?php if ($sin_stock): ?>
             <div class="stock-overlay">SIN STOCK</div>
           <?php endif; ?>
           <img src="../assets/images/<?= htmlspecialchars($model['image']) ?>" alt="<?= htmlspecialchars($model['title']) ?>">
           <br>
-          <small>$<?= number_format($model['price'], 0) ?></small>
+          <?php if ($has_discount): ?>
+             <small><del style="color: #999;">$<?= number_format($model['price'], 0) ?></del></small>
+             <strong style="color: #e74c3c;">$<?= number_format($final_price, 0) ?></strong>
+          <?php else: ?>
+             <small>$<?= number_format($model['price'], 0) ?></small>
+          <?php endif; ?>
         </div>
       <?php endforeach; ?>
     </div>
     <button type="submit" id="btn-next" class="boton-siguiente">Siguiente</button>
   </form>
+  
+  <?php if ($discount_data): ?>
+    <div style="text-align: center; margin-top: 20px; color: #2ecc71; font-weight: bold;">
+        <i class="fas fa-tag"></i> ¡Descuento por referido aplicado!
+    </div>
+  <?php endif; ?>
 
 <?php elseif ($step == 2):
   $model_id = $_GET['model_id'] ?? null;
+  $model_price = $_GET['model_price'] ?? 0; // Capture price
   if (!$model_id) die("Modelo no especificado.");
 
   $stmt = $pdo->prepare("SELECT * FROM templates WHERE user_id = ?");
   $stmt->execute([$user_id]);
   $plantillas = $stmt->fetchAll();
 ?>
-<h2 class="titulo">2. Ingresá el texto y elegí un diseño</h2>
+<h2 class="titulo">2. Ingresá el texto que llevará tu sello y luego elegí un diseño</h2>
 <form method="get" action="index.php">
   <input type="hidden" name="u" value="<?= htmlspecialchars($link_code) ?>">
   <input type="hidden" name="step" value="3">
   <input type="hidden" name="model_id" value="<?= htmlspecialchars($model_id) ?>">
+  <input type="hidden" name="model_price" value="<?= htmlspecialchars($model_price) ?>">
   <input type="hidden" name="template_id" value="" required>
 
   <div class="form-container">
@@ -536,6 +598,7 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
   // 1. Recuperar datos del paso anterior
   $model_id = $_GET['model_id'] ?? null;
   $template_id = $_GET['template_id'] ?? null;
+  $model_price = $_GET['model_price'] ?? 0; // Capture price
   if (!$model_id || !$template_id) die("Faltan datos para continuar.");
 
   // 2. Obtener datos de la plantilla base
@@ -607,6 +670,7 @@ $todas_las_fuentes = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'R
 <form method="post" action="index.php?u=<?= htmlspecialchars($link_code) ?>&step=4">
     <input type="hidden" name="model_id" value="<?= htmlspecialchars($model_id) ?>">
     <input type="hidden" name="template_id" value="<?= htmlspecialchars($template_id) ?>">
+    <input type="hidden" name="model_price" value="<?= htmlspecialchars($model_price) ?>">
 
     <div class="editor-wrapper">
         <div class="controles-col">
@@ -823,9 +887,13 @@ document.addEventListener('DOMContentLoaded', function() {
             <label for="phone" style="display:block; margin-bottom:5px;">Teléfono</label>
             <input type="tel" id="phone" name="phone" required>
         </div>
-        <div>
+        <div style="margin-bottom: 10px;">
             <label for="address" style="display:block; margin-bottom:5px;">Dirección</label>
             <input type="text" id="address" name="address" required>
+        </div>
+        <div>
+            <label for="comments" style="display:block; margin-bottom:5px;">Comentarios o Indicaciones</label>
+            <textarea id="comments" name="comments" rows="3" placeholder="si tienes alguna indicación extra para tu pedido o la entrega"></textarea>
         </div>
     </div>
 
@@ -843,11 +911,16 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
 let currentTemplateData = null;
 
-function seleccionarModelo(el, modelId) {
+function seleccionarModelo(el) {
     document.querySelectorAll('.modelo-card').forEach(card => card.classList.remove('active'));
     el.classList.add('active');
+    
     const modelIdInput = document.getElementById('model_id');
-    if (modelIdInput) modelIdInput.value = modelId;
+    const modelPriceInput = document.getElementById('model_price');
+
+    if (modelIdInput) modelIdInput.value = el.dataset.modelId;
+    if (modelPriceInput) modelPriceInput.value = el.dataset.price;
+
     const nextBtn = document.getElementById('btn-next');
     if (nextBtn) nextBtn.classList.add('active');
 }
@@ -1088,6 +1161,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const currentStep = "<?= htmlspecialchars($step ?? '') ?>";
+
+    if (currentStep === '4') {
+        const addressInput = document.getElementById('address');
+        if (addressInput) {
+            const autocomplete = new google.maps.places.Autocomplete(addressInput, {
+                types: ['address'],
+                componentRestrictions: {'country': ['ar']}, // Restringir a Argentina
+            });
+
+            autocomplete.addListener('place_changed', function() {
+                const place = autocomplete.getPlace();
+                if (!place.geometry) {
+                    // El usuario ingresó el nombre de un lugar que no contiene geometría
+                    console.log("No details available for input: '" + place.name + "'");
+                    return;
+                }
+                // Si la dirección es válida, el campo se llenará automáticamente.
+                // Podrías añadir más lógica aquí si necesitas extraer componentes específicos de la dirección
+            });
+        }
+    }
+});
 </script>
 </body>
 </html>
