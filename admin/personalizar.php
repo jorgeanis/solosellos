@@ -11,7 +11,7 @@ if (isset($_GET['delete_status'])) {
     $stmt = $pdo->prepare("DELETE FROM custom_statuses WHERE id = ? AND user_id = ?");
     $stmt->execute([$status_id_to_delete, $user_id]);
     // Redirect to avoid re-deleting on refresh
-    header("Location: personalizar.php");
+    header("Location: personalizar.php?tab=pedidos");
     exit;
 }
 
@@ -24,7 +24,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['add_status'])) {
         $stmt->execute([$user_id, $new_status_name, $new_status_color]);
     }
     // Redirect to show the new status and clear POST
-    header("Location: personalizar.php");
+    header("Location: personalizar.php?tab=pedidos");
     exit;
 }
 
@@ -41,19 +41,8 @@ $password_error    = '';
 $show_password_modal = false;
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    // Handle status add form submission, check for a specific name
-    if (isset($_POST['add_status'])) {
-        $new_status_name = trim($_POST['new_status_name'] ?? '');
-        $new_status_color = $_POST['new_status_color'] ?? '#FFFFFF';
-        if (!empty($new_status_name)) {
-            $stmt = $pdo->prepare("INSERT INTO custom_statuses (user_id, status_name, color) VALUES (?, ?, ?)");
-            $stmt->execute([$user_id, $new_status_name, $new_status_color]);
-            header("Location: personalizar.php"); // Redirect to prevent form resubmission
-            exit;
-        }
-    }
     // Check for password change form submission
-    elseif (isset($_POST['password_change'])) {
+    if (isset($_POST['password_change'])) {
         $show_password_modal = true;
         $current = $_POST['current_password'] ?? '';
         $new     = $_POST['new_password'] ?? '';
@@ -75,8 +64,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $password_error = 'Las nuevas contraseñas no coinciden.';
         }
     } 
-    // Handle the main form submission
-    else {
+    // Handle the main form submission (General Settings)
+    elseif (!isset($_POST['add_status'])) {
         $color = $_POST['color_primary'];
         $email = $_POST['email'] ?? '';
         $name  = $_POST['name'] ?? '';
@@ -114,61 +103,98 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $_SESSION['user']['referral_active'] = $referral_active;
         $_SESSION['user']['referral_type'] = $referral_type;
         $_SESSION['user']['referral_value'] = $referral_value;
+        
+        $success_message = "Cambios guardados correctamente.";
     }
 }
+
+// Determine active tab
+$active_tab = $_GET['tab'] ?? 'general';
 ?>
 
 <style>
-/* New layout styles */
-.settings-container {
-    display: grid;
-    grid-template-columns: repeat(12, 1fr); /* 12-column grid */
-    gap: 20px;
-    margin-bottom: 20px;
+/* Tab System Styles */
+.tabs-nav {
+    display: flex;
+    gap: 10px;
+    border-bottom: 2px solid #e0e0e0;
+    margin-bottom: 25px;
+    padding-bottom: 0;
 }
+.tab-btn {
+    padding: 12px 20px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    color: #666;
+    transition: all 0.3s ease;
+}
+.tab-btn:hover {
+    color: #1abc9c;
+    background-color: #f9f9f9;
+}
+.tab-btn.active {
+    color: #1abc9c;
+    border-bottom-color: #1abc9c;
+    font-weight: bold;
+}
+.tab-content {
+    display: none;
+    animation: fadeIn 0.4s ease;
+}
+.tab-content.active {
+    display: block;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Form Styles */
 .settings-card {
     background: #fff;
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    padding: 20px;
-    grid-column: span 12; /* Default: full width on small screens */
-}
-/* Spanning rules for specific cards on larger screens */
-@media (min-width: 992px) {
-    #card-perfil { grid-column: span 6; }
-    #card-marca { grid-column: span 6; }
-    #card-estados { grid-column: span 7; }
-    #card-contenido { grid-column: span 5; }
-    #card-fondo { grid-column: span 12; }
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    padding: 25px;
+    margin-bottom: 20px;
+    border: 1px solid #eee;
 }
 .settings-card h3 {
     margin-top: 0;
-    border-bottom: 2px solid #1abc9c;
-    padding-bottom: 10px;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 15px;
     margin-bottom: 20px;
     font-size: 18px;
     color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 .settings-card label {
-    font-weight: bold;
+    font-weight: 600;
     display: block;
-    margin-bottom: 5px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #444;
+}
+.form-group {
+    margin-bottom: 20px;
+}
+input[type="text"], input[type="email"], input[type="number"], select, textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-sizing: border-box;
     font-size: 14px;
 }
-.settings-card input[type="text"],
-.settings-card input[type="email"],
-.settings-card textarea {
-    width: 100%;
-    max-width: 400px; /* Constrain max width of text inputs */
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-sizing: border-box;
-}
-.settings-card .color-pickers {
+.color-pickers {
     display: flex;
     gap: 20px;
     align-items: center;
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 6px;
 }
 .bg-grid {
     display:grid;
@@ -176,124 +202,167 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     gap:15px;
 }
 .bg-grid label {
-    width: 100px;
-    height: 180px;
+    height: 150px;
     border: 3px solid transparent;
-    border-radius: 10px;
+    border-radius: 8px;
     cursor: pointer;
-    position: relative;
     background-size: cover;
     background-position: center;
-    transition: border-color 0.2s;
-    display: inline-block;
+    transition: all 0.2s;
+    display: block;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
-.bg-grid input[type='radio'] {
-    opacity: 0;
-}
-.bg-grid input[type='radio']:checked + .bg-image-label {
+.bg-grid input[type='radio'] { opacity: 0; position: absolute; }
+.bg-grid input[type='radio']:checked + label {
     border-color: #1abc9c;
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(26, 188, 156, 0.3);
 }
 .main-save-button {
+    /* Existing style override for FAB */
+    display: none; /* Hide old buttons */
+}
+/* FAB Button Styles */
+.fab-save {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 60px;
+    height: 60px;
     background: #1abc9c;
     color: white;
-    border: none;
-    border-radius: 4px;
+    border-radius: 30px; /* Circle initially */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(26, 188, 156, 0.4);
     cursor: pointer;
-    padding: 10px 25px;
-    font-size: 16px;
-    transition: background 0.2s;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 1000;
+    border: none;
+    font-family: inherit;
 }
-.main-save-button:hover {
+.fab-save .icon {
+    font-size: 24px;
+    transition: transform 0.4s ease;
+}
+.fab-save .text {
+    width: 0;
+    opacity: 0;
+    white-space: nowrap;
+    margin-left: 0;
+    font-weight: bold;
+    font-size: 16px;
+    transition: all 0.4s ease;
+}
+.fab-save:hover {
+    width: 180px; /* Expand width */
+    border-radius: 30px;
     background: #16a085;
+    padding-right: 15px; /* Add padding for text */
+}
+.fab-save:hover .icon {
+    transform: rotate(360deg); /* Rotate icon */
+}
+.fab-save:hover .text {
+    width: auto;
+    opacity: 1;
+    margin-left: 10px;
 }
 </style>
 
-<h2>Personalización del sitio</h2>
-<p>
-  <a href="setup_wizard.php?force=1" style="background:#1abc9c;color:#fff;padding:6px 12px;border-radius:4px;text-decoration:none;">Ejecutar asistente</a>
-</p>
+<div style="display: flex; justify-content: space-between; align-items: center;">
+    <h2>Personalización del Sitio</h2>
+    <?php if($success_message): ?>
+        <div style="padding: 10px 20px; background: #d4edda; color: #155724; border-radius: 5px; font-weight: bold;">
+            <?= $success_message ?>
+        </div>
+    <?php endif; ?>
+</div>
+
+<!-- Tabs Navigation -->
+<div class="tabs-nav">
+    <button class="tab-btn <?= $active_tab == 'general' ? 'active' : '' ?>" onclick="openTab('general')">⚙️ General</button>
+    <button class="tab-btn <?= $active_tab == 'apariencia' ? 'active' : '' ?>" onclick="openTab('apariencia')">🎨 Apariencia</button>
+    <button class="tab-btn <?= $active_tab == 'pedidos' ? 'active' : '' ?>" onclick="openTab('pedidos')">📋 Estados de Pedido</button>
+    <button class="tab-btn <?= $active_tab == 'referidos' ? 'active' : '' ?>" onclick="openTab('referidos')">🎁 Sistema de Referidos</button>
+</div>
 
 <form method="POST" enctype="multipart/form-data">
     <input type="hidden" name="background_image" id="background_image" value="<?= htmlspecialchars($_SESSION['user']['background_image'] ?? '') ?>">
 
-    <div class="settings-container">
+    <!-- TAB 1: GENERAL -->
+    <div id="tab-general" class="tab-content <?= $active_tab == 'general' ? 'active' : '' ?>">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <!-- Columna Izquierda: Datos del Negocio -->
+            <div class="settings-card" style="margin-bottom: 0; height: 100%;">
+                <h3>👤 Datos del Negocio</h3>
+                <div class="form-group">
+                    <label for="name">Nombre del Negocio:</label>
+                    <input type="text" id="name" name="name" value="<?= $_SESSION['user']['name'] ?>">
+                </div>
+                <div class="form-group">
+                    <label for="whatsapp">WhatsApp (sin símbolos):</label>
+                    <input type="text" id="whatsapp" name="whatsapp" value="<?= $_SESSION['user']['whatsapp'] ?>">
+                </div>
+                <div class="form-group">
+                    <label for="email">Email de notificaciones:</label>
+                    <input type="email" id="email" name="email" value="<?= $_SESSION['user']['email'] ?? '' ?>">
+                </div>
+                <div style="margin-top: 25px;">
+                     <button type="button" onclick="openPasswordModal()" style="background: #34495e; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        🔐 Cambiar contraseña de acceso
+                     </button>
+                </div>
+            </div>
 
-        <!-- Card 1: Perfil y Contacto -->
-        <div class="settings-card" id="card-perfil">
-            <h3>Perfil y Contacto</h3>
-            <label for="name">Nombre:</label>
-            <input type="text" id="name" name="name" value="<?= $_SESSION['user']['name'] ?>"><br><br>
-
-            <label for="whatsapp">Número de WhatsApp:</label>
-            <input type="text" id="whatsapp" name="whatsapp" value="<?= $_SESSION['user']['whatsapp'] ?>"><br><br>
-
-            <label for="email">Email:</label>
-            <input type="email" id="email" name="email" value="<?= $_SESSION['user']['email'] ?? '' ?>"><br><br>
-
-            <button type="button" onclick="openPasswordModal()">Cambiar contraseña</button>
+            <!-- Columna Derecha: Logo -->
+            <div class="settings-card" style="margin-bottom: 0; height: 100%;">
+                <h3>🖼️ Logo del Sitio</h3>
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center;">
+                    <?php if ($_SESSION['user']['logo']): ?>
+                        <div style="border: 1px dashed #ccc; padding: 15px; border-radius: 10px; margin-bottom: 20px; background: #fafafa; width: 80%; display: flex; justify-content: center;">
+                            <img src="../assets/images/<?= $_SESSION['user']['logo'] ?>" style="max-height: 100px; max-width: 100%; object-fit: contain;">
+                        </div>
+                    <?php else: ?>
+                        <div style="margin-bottom: 20px; color: #999; font-style: italic;">Sin logo actual</div>
+                    <?php endif; ?>
+                    
+                    <label for="logo" style="cursor: pointer; background: #3498db; color: white; padding: 10px 20px; border-radius: 5px; font-weight: bold; display: inline-block;">
+                        📂 Seleccionar Nuevo Archivo
+                    </label>
+                    <input type="file" id="logo" name="logo" style="display: none;" onchange="document.getElementById('file-name').textContent = this.files[0].name">
+                    <span id="file-name" style="margin-top: 10px; font-size: 13px; color: #666;"></span>
+                </div>
+            </div>
         </div>
+    </div>
 
-        <!-- Card 2: Marca y Colores -->
-        <div class="settings-card" id="card-marca">
-            <h3>Marca y Colores</h3>
-            <label for="logo">Logo actual:</label>
-            <?php if ($_SESSION['user']['logo']): ?>
-                <img src="../assets/images/<?= $_SESSION['user']['logo'] ?>" style="height:80px; display:block; margin-bottom:10px;"><br>
-            <?php endif; ?>
-            <input type="file" id="logo" name="logo"><br><br>
-
-            <label>Colores de la marca:</label>
+    <!-- TAB 2: APARIENCIA -->
+    <div id="tab-apariencia" class="tab-content <?= $active_tab == 'apariencia' ? 'active' : '' ?>">
+        <div class="settings-card">
+            <h3>🎨 Colores de la Marca</h3>
             <div class="color-pickers">
                 <div>
-                    <label for="color_primary" style="font-weight:normal;">Primario</label>
-                    <input type="color" name="color_primary" id="color_primary" value="<?= $_SESSION['user']['color_primary'] ?>" style="width: 50px; height: 35px; padding: 2px; border-radius: 5px;">
+                    <label for="color_primary" style="font-weight:normal;">Color Principal</label>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <input type="color" name="color_primary" id="color_primary" value="<?= $_SESSION['user']['color_primary'] ?>" style="width: 50px; height: 40px; border: none; padding: 0; cursor: pointer;">
+                        <span style="font-family:monospace;"><?= $_SESSION['user']['color_primary'] ?></span>
+                    </div>
                 </div>
                 <div>
-                    <label for="color_secundary" style="font-weight:normal;">Secundario</label>
-                    <input type="color" name="color_secundary" id="color_secundary" value="<?= $_SESSION['user']['color_secundary'] ?>" style="width: 50px; height: 35px; padding: 2px; border-radius: 5px;">
-                </div>
-            </div>
-        </div>
-
-        <!-- Card 3: Estados de Pedido -->
-        <div class="settings-card" id="card-estados">
-            <h3>Gestionar Estados de Pedidos</h3>
-            <div>
-                <?php foreach ($custom_statuses as $status): ?>
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                        <div style="width: 20px; height: 20px; background-color: <?= htmlspecialchars($status['color']) ?>; border: 1px solid #666; border-radius: 4px;"></div>
-                        <span><?= htmlspecialchars($status['status_name']) ?></span>
-                        <a href="personalizar.php?delete_status=<?= $status['id'] ?>" onclick="return confirm('¿Estás seguro de que deseas eliminar este estado?');" style="color: red; text-decoration: none; margin-left:auto;">[Eliminar]</a>
+                    <label for="color_secundary" style="font-weight:normal;">Color Secundario</label>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <input type="color" name="color_secundary" id="color_secundary" value="<?= $_SESSION['user']['color_secundary'] ?>" style="width: 50px; height: 40px; border: none; padding: 0; cursor: pointer;">
+                        <span style="font-family:monospace;"><?= $_SESSION['user']['color_secundary'] ?></span>
                     </div>
-                <?php endforeach; ?>
-                <?php if (empty($custom_statuses)): ?>
-                    <p>No has añadido ningún estado personalizado.</p>
-                <?php endif; ?>
-            </div>
-            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
-                <label for="new_status_name">Añadir Nuevo Estado</label>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                     <input type="text" id="new_status_name" name="new_status_name" placeholder="Nombre del estado" style="margin:0;">
-                     <input type="color" name="new_status_color" value="#e6f0ff" style="width: 50px; height: 38px; padding: 2px; border-radius:5px; margin:0;">
-                     <button type="submit" name="add_status" style="width: auto; margin:0; padding: 8px 12px; font-size:14px;">Añadir</button>
                 </div>
             </div>
         </div>
 
-        <!-- Card 4: Contenido del Sitio -->
-        <div class="settings-card" id="card-contenido">
-            <h3>Contenido del Sitio</h3>
-            <label for="welcome">Mensaje de bienvenida:</label>
-            <textarea id="welcome" name="welcome" rows="3"><?php echo htmlspecialchars($_SESSION['user']['welcome'] ?? '', ENT_QUOTES); ?></textarea><br><br>
-
-            <label>Texto del footer:</label>
-            <div id="editor" style="height:150px;"><?= $_SESSION['user']['footer'] ?? "" ?></div>
-            <textarea name="footer" id="footer" style="display:none"><?= $_SESSION['user']['footer'] ?? "" ?></textarea>
-        </div>
-
-        <!-- Card 5: Fondo del Sitio -->
-        <div class="settings-card" id="card-fondo">
-            <h3>Fondo del Sitio</h3>
+        <div class="settings-card">
+            <h3>🌄 Fondo del Sitio</h3>
             <div class="bg-grid">
                 <?php
                   $fondos = glob('../assets/images/bg/*.jpg');
@@ -303,64 +372,135 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     $checked = ($nombre === $fondo_actual) ? 'checked' : '';
                     echo "<div>
                             <input type='radio' name='bg_select' value='$nombre' id='bg_$nombre' $checked>
-                            <label for='bg_$nombre' class='bg-image-label' style=\"background-image: url('../assets/images/bg/$nombre');\"></label>
+                            <label for='bg_$nombre' style=\"background-image: url('../assets/images/bg/$nombre');\"></label>
                           </div>";
                   }
                 ?>
             </div>
         </div>
 
-        <!-- Card 6: Sistema de Referidos -->
-        <div class="settings-card" id="card-referidos" style="grid-column: span 12;">
-            <h3>Sistema de Referidos</h3>
-            <p style="font-size: 14px; color: #666; margin-bottom: 15px;">
-                Configura el sistema de referidos para que tus clientes puedan invitar a otros y obtengan un descuento.
-            </p>
+        <div class="settings-card">
+            <h3>📝 Textos</h3>
+            <div class="form-group">
+                <label for="welcome">Mensaje de bienvenida (Inicio):</label>
+                <textarea id="welcome" name="welcome" rows="3"><?php echo htmlspecialchars($_SESSION['user']['welcome'] ?? '', ENT_QUOTES); ?></textarea>
+            </div>
+            <div class="form-group">
+                <label>Texto del Pie de Página (Footer):</label>
+                <div id="editor" style="height:150px; background: white;"><?= $_SESSION['user']['footer'] ?? "" ?></div>
+                <textarea name="footer" id="footer" style="display:none"><?= $_SESSION['user']['footer'] ?? "" ?></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 3: PEDIDOS -->
+    <div id="tab-pedidos" class="tab-content <?= $active_tab == 'pedidos' ? 'active' : '' ?>">
+        <div class="settings-card">
+            <h3>🏷️ Gestión de Estados</h3>
+            <p style="color: #666; margin-bottom: 15px;">Define los estados por los que pasa un pedido para organizar tu flujo de trabajo.</p>
             
-            <div style="margin-bottom: 15px; display: flex; align-items: center;">
-                <input type="checkbox" id="referral_active" name="referral_active" value="1" <?= !empty($_SESSION['user']['referral_active']) ? 'checked' : '' ?> style="width: auto; margin-right: 10px;">
-                <label for="referral_active" style="margin-bottom: 0; cursor: pointer;">Activar sistema de referidos</label>
+            <div style="background: #f8f9fa; border-radius: 8px; padding: 15px; border: 1px dashed #ccc; margin-bottom: 20px;">
+                <label style="margin-bottom: 10px;">Añadir Nuevo Estado:</label>
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                     <input type="text" name="new_status_name" placeholder="Ej: En Producción" style="flex: 1; min-width: 200px;">
+                     <input type="color" name="new_status_color" value="#3498db" style="width: 50px; height: 38px; padding: 0; border: none; cursor: pointer;">
+                     <button type="submit" name="add_status" value="1" style="background: #2c3e50; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">+ Agregar</button>
+                </div>
             </div>
 
-            <div style="display: flex; gap: 20px; align-items: flex-start;">
-                <div>
-                    <label for="referral_type">Tipo de descuento</label>
-                    <select name="referral_type" id="referral_type" style="padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #f0f0f0; text-align: left;">
+                        <th style="padding: 10px; border-bottom: 2px solid #ddd;">Color</th>
+                        <th style="padding: 10px; border-bottom: 2px solid #ddd;">Nombre del Estado</th>
+                        <th style="padding: 10px; border-bottom: 2px solid #ddd; text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($custom_statuses as $status): ?>
+                        <tr>
+                            <td style="padding: 10px; border-bottom: 1px solid #eee; width: 60px;">
+                                <div style="width: 30px; height: 30px; background-color: <?= htmlspecialchars($status['color']) ?>; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></div>
+                            </td>
+                            <td style="padding: 10px; border-bottom: 1px solid #eee;">
+                                <strong><?= htmlspecialchars($status['status_name']) ?></strong>
+                            </td>
+                            <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">
+                                <a href="personalizar.php?delete_status=<?= $status['id'] ?>&tab=pedidos" onclick="return confirm('¿Estás seguro de que deseas eliminar este estado?');" style="color: #e74c3c; text-decoration: none; padding: 5px 10px; border: 1px solid #e74c3c; border-radius: 4px; font-size: 13px;">Eliminar</a>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    <?php if (empty($custom_statuses)): ?>
+                        <tr><td colspan="3" style="padding: 20px; text-align: center; color: #999;">No hay estados personalizados.</td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- TAB 4: REFERIDOS -->
+    <div id="tab-referidos" class="tab-content <?= $active_tab == 'referidos' ? 'active' : '' ?>">
+        <div class="settings-card">
+            <h3>🎁 Configuración de Referidos</h3>
+            <p style="color: #666; font-size: 15px; margin-bottom: 20px; line-height: 1.5;">
+                Incentiva a tus clientes a compartir tu página. Cuando un cliente refiere a otro, el nuevo cliente obtiene un descuento automático en su primera compra.
+            </p>
+            
+            <div style="background: #e8f5e9; border: 1px solid #a5d6a7; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+                <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                    <input type="checkbox" id="referral_active" name="referral_active" value="1" <?= !empty($_SESSION['user']['referral_active']) ? 'checked' : '' ?> style="width: 20px; height: 20px; margin-right: 10px;">
+                    <label for="referral_active" style="margin: 0; font-size: 16px; color: #2e7d32; cursor: pointer;">Activar Sistema de Referidos</label>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                <div class="form-group">
+                    <label for="referral_type">Tipo de Descuento:</label>
+                    <select name="referral_type" id="referral_type" style="background: #fff;">
                         <option value="percent" <?= ($_SESSION['user']['referral_type'] ?? 'percent') === 'percent' ? 'selected' : '' ?>>Porcentaje (%)</option>
                         <option value="fixed" <?= ($_SESSION['user']['referral_type'] ?? '') === 'fixed' ? 'selected' : '' ?>>Monto Fijo ($)</option>
                     </select>
+                    <small style="color: #777;">Elige si descontar un % del total o una cantidad fija de dinero.</small>
                 </div>
-                <div>
-                    <label for="referral_value">Valor del descuento</label>
-                    <input type="number" step="0.01" name="referral_value" id="referral_value" value="<?= htmlspecialchars($_SESSION['user']['referral_value'] ?? '0.00') ?>" style="width: 100px;">
+                <div class="form-group">
+                    <label for="referral_value">Valor del Descuento:</label>
+                    <input type="number" step="0.01" name="referral_value" id="referral_value" value="<?= htmlspecialchars($_SESSION['user']['referral_value'] ?? '0.00') ?>" style="font-size: 18px; font-weight: bold;">
+                    <small style="color: #777;">Ejemplo: Si es porcentaje pon 10 (para 10%). Si es fijo pon 500 (para $500).</small>
                 </div>
             </div>
         </div>
-    </div> 
+    </div>
 
-    <br>
-    <button type="submit" class="main-save-button">Guardar Cambios Generales</button>
+    <!-- Floating Action Button -->
+    <button type="submit" class="fab-save" title="Guardar Cambios">
+        <span class="icon">💾</span>
+        <span class="text">Guardar Cambios</span>
+    </button>
+
 </form>
 
 <style>
+/* Modal Styles */
 @keyframes fadeInDown { from { opacity:0; transform:translateY(-30px); } to { opacity:1; transform:translateY(0); } }
 @keyframes fadeOutUp   { from { opacity:1; transform:translateY(0); } to { opacity:0; transform:translateY(-30px); } }
 @keyframes shake {
-  0%,100%{transform:translateX(0);}20%,60%{transform:translateX(-10px);}40%,80%{transform:translateX(10px);}
+  0%,100%{transform:translateX(0);}
+  20%,60%{transform:translateX(-10px);}
+  40%,80%{transform:translateX(10px);}
 }
 .modal{display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.6);justify-content:center;align-items:center;}
 .modal.mostrar{display:flex;}
-.modal-contenido{background:#fff;padding:20px;border-radius:8px;width:300px;animation:fadeInDown .3s forwards;}
+.modal-contenido{background:#fff;padding:25px;border-radius:10px;width:350px;animation:fadeInDown .3s forwards; box-shadow: 0 10px 25px rgba(0,0,0,0.2);}
 .modal-cerrar{animation:fadeOutUp .3s forwards;}
 .shake{animation:shake .3s;}
-.mensaje-error{color:red;text-align:center;margin:0 0 10px;}
-.mensaje-exito{color:green;text-align:center;margin:0 0 10px;}
+.mensaje-error{color:#e74c3c;text-align:center;margin:0 0 10px; font-weight: bold;}
+.mensaje-exito{color:#27ae60;text-align:center;margin:0 0 10px; font-weight: bold;}
 </style>
 
 <div id="passwordModal" class="modal<?= $show_password_modal ? ' mostrar' : '' ?>">
   <div class="modal-contenido<?= $password_error ? ' shake' : '' ?>">
-    <span style="float:right; cursor:pointer;" onclick="closePasswordModal()">&times;</span>
-    <h3>Cambiar contraseña</h3>
+    <span style="float:right; cursor:pointer; font-size: 20px;" onclick="closePasswordModal()">&times;</span>
+    <h3 style="margin-top:0;">Cambiar contraseña</h3>
     <?php if ($password_success): ?>
       <p class="mensaje-exito" id="passwordMessage"><?= $password_success ?></p>
     <?php elseif ($password_error): ?>
@@ -371,26 +511,39 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <form method="POST">
       <input type="hidden" name="password_change" value="1">
       <label>Contraseña actual:</label><br>
-      <input type="password" name="current_password" required><br><br>
+      <input type="password" name="current_password" required style="width:100%; margin-bottom:10px;"><br>
       <label>Nueva contraseña:</label><br>
-      <input type="password" name="new_password" required><br><br>
+      <input type="password" name="new_password" required style="width:100%; margin-bottom:10px;"><br>
       <label>Confirmar contraseña:</label><br>
-      <input type="password" name="confirm_password" required><br><br>
-      <button type="submit">Actualizar</button>
+      <input type="password" name="confirm_password" required style="width:100%; margin-bottom:15px;"><br>
+      <button type="submit" style="width:100%; background: #1abc9c; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold;">Actualizar</button>
     </form>
   </div>
 </div>
-
-
-
-
-
 
 <!-- Quill editor -->
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
 
 <script>
+// Tab Switching Logic
+function openTab(tabName) {
+    // Hide all contents
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    // Deactivate all buttons
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    
+    // Show target content
+    document.getElementById('tab-' + tabName).classList.add('active');
+    // Activate target button
+    document.querySelector(`.tab-btn[onclick="openTab('${tabName}')"]`).classList.add('active');
+
+    // Update URL without reload to persist state on refresh if desired (optional)
+    const url = new URL(window.location);
+    url.searchParams.set('tab', tabName);
+    window.history.pushState({}, '', url);
+}
+
 document.addEventListener("DOMContentLoaded", function () {
     const quill = new Quill('#editor', {
         theme: 'snow'
@@ -408,30 +561,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 });
-</script>
 
-<?php require_once 'includes/footer.php'; ?>
-
-<script>
-function seleccionarFondo(nombre) {
-  fetch('guardar_fondo.php', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: 'fondo=' + encodeURIComponent(nombre)
-  })
-  .then(response => response.text())
-  .then(data => {
-    alert("Respuesta del servidor: " + data);
-    location.reload();
-  })
-  .catch(error => {
-    alert("Error en fetch: " + error);
-  });
-}
-</script>
-<script>
 document.querySelectorAll("input[type=radio][name=bg_select]").forEach(el => {
   el.addEventListener("change", () => {
     document.getElementById("background_image").value = el.value;
@@ -461,3 +591,5 @@ function closePasswordModal() {
 document.addEventListener('DOMContentLoaded', openPasswordModal);
 <?php endif; ?>
 </script>
+
+<?php require_once 'includes/footer.php'; ?>
