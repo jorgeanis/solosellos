@@ -1,7 +1,8 @@
 /* Estilos para el contenedor de la vista previa de la plantilla */
 .plantilla-preview-container {
+    box-sizing: content-box;
     border: 2px dashed #999;
-    background: linear-gradient(to bottom, #fafafa, #f0f0f0);
+    background: linear-gradient(to bottom, #fafafa, #f0f0f0); /* Reverted to original */
     padding: 10px;
     width: 380px;
     height: 140px;
@@ -19,4 +20,5 @@
     white-space: nowrap;
     line-height: 1; /* Asegura que no haya espacio extra por la altura de línea por defecto */
     margin-bottom: 0; /* Asegura que no haya margen inferior por defecto */
+    color: #000000; /* Forzar color negro */
 }

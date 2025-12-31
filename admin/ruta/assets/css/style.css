@@ -1,0 +1,14 @@
+/* Estilos personalizados para el gestor de repartos */
+
+.pedido-entregado {
+    opacity: 0.6;
+    background-color: #f8f9fa;
+}
+
+.pedido-entregado .card-title {
+    text-decoration: line-through;
+}
+
+.pedido-entregado .btn {
+    pointer-events: none;
+}

@@ -1,6 +1,6 @@
 <?php
 require_once '../admin/includes/db.php';
-session_start(); // Ensure session is started
+session_start();
 
 if (!isset($_GET['u'])) {
     die('Enlace inválido');
@@ -15,36 +15,60 @@ if (!$user) {
     die("El enlace no es válido o el usuario fue desactivado.");
 }
 
-// --- REFERRAL LOGIC START ---
+// --- LOGICA DE REFERIDOS ---
 $referral_code = $_GET['ref'] ?? null;
 $discount_data = null;
 
-// 1. If a code is provided in URL, validate it
-if ($referral_code) {
-    // Check if the referral code exists in orders (it's the order_code of a previous order)
-    // Also ensure the referral system is active for this user (admin)
-    if ($user['referral_active']) {
-        $stmt_ref = $pdo->prepare("SELECT id FROM orders WHERE order_code = ? AND user_id = ?");
-        $stmt_ref->execute([$referral_code, $user['id']]);
-        if ($stmt_ref->fetch()) {
-            // Code is valid! Store in session
-            $_SESSION['referral_code'] = $referral_code;
-            $_SESSION['referral_user_id'] = $user['id']; // To ensure we don't mix up referrals across different admins if multiple exist
-        }
+if ($referral_code && $user['referral_active']) {
+    $stmt_ref = $pdo->prepare("SELECT id FROM orders WHERE order_code = ? AND user_id = ?");
+    $stmt_ref->execute([$referral_code, $user['id']]);
+    if ($stmt_ref->fetch()) {
+        $_SESSION['referral_code'] = $referral_code;
+        $_SESSION['referral_user_id'] = $user['id'];
     }
 }
 
-// 2. Check if a valid referral session exists for THIS user
 if (isset($_SESSION['referral_code']) && isset($_SESSION['referral_user_id']) && $_SESSION['referral_user_id'] == $user['id'] && $user['referral_active']) {
     $discount_data = [
         'type' => $user['referral_type'],
         'value' => $user['referral_value']
     ];
 }
-// --- REFERRAL LOGIC END ---
 
 $user_id = $user['id'];
 $step = $_GET['step'] ?? null;
+
+if (!$step && isset($user['welcome_active']) && $user['welcome_active'] == 0) {
+    $step = 1;
+}
+
+// --- LOGICA DE EDICIÓN DE PEDIDO ---
+$editing_order_id = $_GET['order_id'] ?? null;
+$edit_data = null;
+$edit_styles = null;
+
+if ($editing_order_id) {
+    $stmt_edit = $pdo->prepare("SELECT * FROM orders WHERE id = ? AND user_id = ?");
+    $stmt_edit->execute([$editing_order_id, $user_id]);
+    $edit_data = $stmt_edit->fetch(PDO::FETCH_ASSOC);
+
+    if (!$edit_data) die("Pedido no encontrado.");
+    if (strtolower($edit_data['status']) !== 'pendiente') die("Solo se pueden editar pedidos 'Pendientes'.");
+
+    $edit_styles = json_decode($edit_data['styles'], true);
+    
+    if (!$step) {
+        $step = 2;
+        $_GET['model_id'] = $edit_data['model_id'];
+        $_GET['model_price'] = $edit_data['price'];
+        $contenido = [
+            'linea1' => $edit_data['text_line1'],
+            'linea2' => $edit_data['text_line2'],
+            'linea3' => $edit_data['text_line3'],
+            'linea4' => $edit_data['text_line4']
+        ];
+    }
+}
 
 $stmt = $pdo->prepare("SELECT * FROM models WHERE user_id = ?");
 $stmt->execute([$user_id]);
@@ -57,1136 +81,462 @@ require_once '../admin/includes/fonts.php';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pedido de Sello</title>
+    <title>Pedido de Sello - <?= htmlspecialchars($user['name']) ?></title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '<?= htmlspecialchars($user['color_primary']) ?>',
+                            600: '<?= htmlspecialchars($user['color_primary']) ?>', 
+                            900: '<?= htmlspecialchars($user['color_secundary'] ?? $user['color_primary']) ?>',
+                        }
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    
+    <!-- Google Maps API (Una sola vez, al final mejor, pero lo dejamos aquí sin callback por ahora) -->
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAXXtVhQP_A1Ix8lgPtkpwqR6XVzAQLQzs&libraries=places"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <!-- Legacy CSS for Previews -->
     <link rel="stylesheet" href="../assets/css/plantilla-preview.css">
-    <?php
-    foreach ($todas_las_fuentes as $fuente) {
-        $nombre_fuente = str_replace(' ', '+', $fuente);
-        echo "<link href='https://fonts.googleapis.com/css2?family={$nombre_fuente}&display=swap' rel='stylesheet'>\n";
-    }
-    ?>
-<style>
-    :root {
-      --color-principal: <?= htmlspecialchars($user['color_primary']) ?>;
-      --fuente-principal: '<?= htmlspecialchars($user['font_family']) ?>', sans-serif;
-    }
-    body {
-      margin: 0;
-      font-family: var(--fuente-principal);
-      background: #f5f5f5;
-      padding: 0; /* Eliminado el padding */
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-      justify-content: space-between;
-      overflow-x: hidden;
-      <?php $bg = isset($user['background_image']) ? '../assets/images/bg/' . $user['background_image'] : ''; ?>
-      <?= $bg ? 'background-image: url(' . $bg . '); background-size: cover; background-position: center; background-attachment: fixed;' : '' ?>
-    }
-    .container { 
-        max-width: 500px; 
-        margin: 0 auto; 
-        width: 100%;
-        padding-top: 20px; /* Añadido para compensar */
-    }
-    .titulo {
-        background-color: #e1f5fe;
-        padding: 14px 18px;
-        text-align: center;
-        font-size: 20px;
-        font-weight: 600;
-        border-radius: 10px;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-        color: #01579b;
-        width: 90%;
-        margin: 0 auto 20px;
-    }
-    .modelo-lista {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 5px;
-      justify-content: center;
-      max-width: 360px;
-      margin: 0 auto;
-    }
-    .modelo-card {
-      background: white;
-      border: 2px solid transparent;
-      border-radius: 12px;
-      width: 100%;
-      max-width: 200px;
-      padding: 5px;
-      text-align: center;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.08);
-      cursor: pointer;
-      transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
-    }
-    .modelo-card:hover {
-        box-shadow: 0 6px 15px rgba(0,0,0,0.15);
-    }
-    .modelo-card img {
-      max-width: 100%; max-height: 100px; object-fit: contain; margin-bottom: 8px;
-    }
-    .modelo-card.active {
-      border-color: var(--color-principal);
-    }
-    .modelo-card.sin-stock {
-      position: relative;
-      cursor: not-allowed;
-      opacity: 0.7;
-    }
-    .modelo-card.sin-stock img {
-      filter: blur(2px) grayscale(80%);
-    }
-    .stock-overlay {
-      position: absolute;
-      top: 40%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background-color: rgba(217, 30, 24, 0.85);
-      color: white;
-      padding: 8px 15px;
-      border-radius: 5px;
-      font-weight: bold;
-      font-size: 14px;
-      z-index: 1;
-      text-transform: uppercase;
-    }
-
-    .plantilla-item {
-        border: 2px solid transparent;
-        border-radius: 8px;
-        cursor: pointer;
-        padding: 0;
-        position: relative; /* Add this */
-        width: calc(100% - 10px); /* Ancho flexible para el contenedor */
-        max-width: 300px; /* Limitar el ancho máximo */
-        height: 165px; /* Alto fijo para el contenedor */
-        overflow: hidden; /* Ocultar cualquier contenido que se desborde */
-        box-sizing: border-box; /* Asegura que el padding y borde no afecten el tamaño final */
-    }
-    .plantilla-preview-container-scaled {
-        position: absolute;
-        top: 44%;
-        left: 48%;
-        transform: translate(-50%, -50%) scale(0.68);
-        width: 380px; /* Ancho original del contenido */
-        height: 140px; /* Alto original del contenido */
-    }
-    .plantilla-item.active {
-        border-color: var(--color-principal);
-    }
-    .btn-elegir {
-      position: absolute;
-      bottom: 5px;
-      left: 50%;
-      transform: translateX(-50%);
-      background-color: var(--color-principal);
-      color: white;
-      border: none;
-      padding: 8px 15px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-weight: bold;
-      z-index: 10; /* Ensure it's above the preview */
-      transition: background-color 0.3s ease;
-    }
-    .btn-elegir:hover {
-      background-color: #0056b3; /* Darker shade of primary color */
-    }
-    .boton-siguiente {
-      margin: 25px auto 0 auto;
-      width: 60%;
-      padding: 14px;
-      background: var(--color-principal);
-      color: white;
-      font-size: 16px;
-      border: none;
-      border-radius: 8px;
-      display: none;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .boton-siguiente.active { display: block; }
-    .boton-siguiente:hover {
-        transform: scale(1.03);
-        box-shadow: 0 6px 18px rgba(0,0,0,0.15);
-    }
-    input, select, textarea {
-        border-radius: 8px;
-        padding: 8px;
-        border: 1px solid #ccc;
-        width: 100%;
-        box-sizing: border-box;
-        font-size: 14px;
-        margin-top: 5px;
-        margin-bottom: 10px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        transition: all 0.3s ease-in-out;
-        text-align: center;
-    }
-    input:focus, select, textarea:focus {
-        outline: none;
-        border-color: var(--color-principal);
-        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
-    }
-    .form-container {
-        background: #ffffff;
-        padding: 25px;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        margin-bottom: 25px;
-    }
-    .input-line-item {
-        display: flex;
-        align-items: center;
-        margin-bottom: 5px;
-    }
-    .input-line-item input[type="text"] {
-        flex-grow: 1;
-        margin-right: 15px;
-        margin-bottom: 0;
-    }
-    .input-line-item input[type="checkbox"] {
-        width: 20px;
-        height: 20px;
-        margin: 0;
-        flex-shrink: 0;
-        accent-color: var(--color-principal);
-    }
-    .input-line-item input[type="checkbox"]:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    /* Estilos para el Editor del Cliente (Paso 3) */
-    .editor-wrapper {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 20px;
-    }
-    .controles-col {
-        flex: 1 1 100%; /* Allow it to shrink and take full width when wrapped */
-        min-width: 0; /* Allow it to shrink below 280px if needed */
-        background: #fff;
-        padding: 15px;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-    .preview-col {
-        flex: 1 1 100%; /* Allow it to shrink and take full width when wrapped */
-        min-width: 0; /* Allow it to shrink below its content width if needed */
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        background: #fff;
-        padding: 15px;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        min-height: 200px;
-    }
-    .tab-buttons {
-        display: flex;
-        gap: 5px;
-        margin-bottom: 15px;
-        justify-content: center; /* Centrar los botones de pestaña */
-    }
-    .tab-btn {
-        padding: 8px 12px;
-        border: 1px solid #ccc;
-        background-color: #f0f0f0;
-        cursor: pointer;
-        border-radius: 5px;
-        transition: all 0.3s ease;
-    }
-    .tab-btn.active {
-        background-color: var(--color-principal);
-        color: white;
-        border-color: var(--color-principal);
-    }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-    .line-controls label {
-        display: block;
-        margin-top: 10px;
-        font-weight: bold;
-    }
-    .line-controls input[type="text"], .line-controls input[type="number"], .line-controls select {
-        width: 100%;
-    }
-    select[name^="fuente"] {
-        display: none;
-    }
-    .font-size-control {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        margin-top: 5px;
-        margin-bottom: 10px;
-    }
-    .btn-font-size {
-        background-color: #f0f0f0;
-        border: 1px solid #ccc;
-        padding: 8px 12px;
-        border-radius: 5px;
-        cursor: pointer;
-        font-size: 1em;
-        line-height: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .btn-font-size:hover {
-        background-color: #e0e0e0;
-    }
-    .btn-margin-top {
-        background-color: #f0f0f0;
-        border: 1px solid #ccc;
-        padding: 8px 12px;
-        border-radius: 5px;
-        cursor: pointer;
-        font-size: 1em;
-        line-height: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .btn-margin-top:hover {
-        background-color: #e0e0e0;
-    }
-    .current-font-size {
-        flex-grow: 1;
-        text-align: center;
-        font-weight: bold;
-        font-size: 1.1em;
-    }
-    .alineacion-btns {
-        display: flex;
-        gap: 5px;
-        margin-top: 5px;
-    }
-    .alineacion-btns button {
-        flex: 1;
-        padding: 6px;
-        border: 1px solid #ccc;
-        background: #f0f0f0;
-        cursor: pointer;
-    }
-    .alineacion-btns button.active {
-        background-color: #4CAF50;
-        color: white;
-    }
     
+    <?php foreach ($todas_las_fuentes as $fuente): ?>
+        <link href='https://fonts.googleapis.com/css2?family=<?= str_replace(' ', '+', $fuente) ?>&display=swap' rel='stylesheet'>
+    <?php endforeach; ?>
 
-    /* Ocultar el select de "Fuente:" */
-    .line-controls select[name^="fuente"] {
-        display: none;
-    }
-
-    /* Ocultar la etiqueta "Fuente:" */
-    .tab-content .line-controls label:nth-of-type(2) {
-        display: none;
-    }
-
-    /* Toolbar Styles */
-    .toolbar {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        align-items: center;
-        justify-content: center; /* Centrado horizontal */
-        border: 1px solid #ddd;
-        padding: 8px;
-        border-radius: 8px;
-        background-color: #f8f9fa;
-        margin-bottom: 15px;
-    }
-    .toolbar-group {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-    .toolbar-divider {
-        width: 1px;
-        height: 24px;
-        background-color: #ccc;
-        margin: 0 4px;
-    }
-    .toolbar > .line-controls > label,
-    .toolbar > label {
-        display: none; /* Ocultar etiquetas de texto directo */
-    }
-    .toolbar .font-size-control, .toolbar .alineacion-btns {
-        margin: 0;
-    }
-    .toolbar .alineacion-btns button {
-        padding: 8px 10px;
-        line-height: 1; /* Añadido para consistencia vertical */
-    }
-    .toolbar .checkbox-label {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        margin-bottom: 0;
-        font-weight: bold;
-        cursor: pointer;
-        padding: 8px 12px;
-        border-radius: 5px;
-        background-color: #f0f0f0;
-        border: 1px solid #ccc;
-        line-height: 1;
-        transition: all 0.2s ease;
-    }
-    .toolbar .checkbox-label:hover {
-        background-color: #e0e0e0;
-    }
-    .hidden-checkbox {
-        display: none; /* Ocultar checkbox original */
-    }
-    .toolbar .checkbox-label.checked {
-        background-color: #c8e6c9;
-        border-color: #a5d6a7;
-        box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
-    }
-</style>
-</head>
-<body>
-<header style="display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background-color: #fff; border-bottom: 1px solid #ccc; font-family: Roboto, sans-serif; width: 100%; box-sizing: border-box;">
-  <div style="display: flex; align-items: center;">
-    <img src="../assets/images/<?= htmlspecialchars($user['logo']) ?>" alt="Logo" style="max-height: 50px; margin-right: 15px;">
-    <span style="font-size: 20px; font-weight: bold;"><?= htmlspecialchars($user['name']) ?></span>
-  </div>
-  <div style="text-align: right;">
-    <span style="display: block; font-size: 16px;">WhatsApp:</span>
-    <a href="https://wa.me/+549<?= preg_replace('/[^0-9]/i', '', $user['whatsapp']) ?>" target="_blank" style="color: #0F7033FF; font-size: 16px; text-decoration: none; font-weight: bold;">
-      <?= htmlspecialchars($user['whatsapp']) ?>
-    </a>
-  </div>
-</header>
-
-<div class="container">
-<?php if (!$step): ?>
-  <div class="form-container" style="text-align: center; margin: 10px; padding: 40px 25px;">
-    <h1 style="color: var(--color-principal); margin-top: 0; font-size: 2em;">¡Bienvenido!</h1>
-    <div style="font-size: 1.1em; line-height: 1.6; color: #555; margin-bottom: 35px;">
-      <?= !empty($user['welcome']) ? nl2br(htmlspecialchars($user['welcome'])) : 'Estás por realizar un pedido de sello personalizado para <strong>' . htmlspecialchars($user['name']) . '</strong>.' ?>
-    </div>
-    <form action="index.php" method="get">
-      <input type="hidden" name="u" value="<?= htmlspecialchars($link_code) ?>">
-      <input type="hidden" name="step" value="1">
-      <button type="submit" class="boton-siguiente active" style="width: 100%; max-width: 300px; margin: 0 auto; display: block;">Comenzar pedido</button>
-    </form>
-  </div>
-<?php elseif ($step == 1): ?>
-  <h2 class="titulo">1. Elegí un modelo</h2>
-  <form method="get" action="index.php">
-    <input type="hidden" name="u" value="<?= htmlspecialchars($link_code) ?>">
-    <input type="hidden" name="step" value="2">
-    <input type="hidden" name="model_id" id="model_id">
-    <input type="hidden" name="model_price" id="model_price">
-    <div class="modelo-lista">
-      <?php foreach ($models as $model): ?>
-        <?php 
-            $sin_stock = $model['stock'] == 0;
-            $final_price = $model['price'];
-            $has_discount = false;
-            
-            if ($discount_data) {
-                $has_discount = true;
-                if ($discount_data['type'] === 'percent') {
-                    $discount_amount = $model['price'] * ($discount_data['value'] / 100);
-                    $final_price = $model['price'] - $discount_amount;
-                } else { // fixed
-                    $final_price = $model['price'] - $discount_data['value'];
-                }
-                if ($final_price < 0) $final_price = 0;
-            }
-        ?>
-        <div class="modelo-card <?= $sin_stock ? 'sin-stock' : '' ?>" 
-             data-model-id="<?= $model['id'] ?>" 
-             data-price="<?= $final_price ?>"
-             <?= !$sin_stock ? 'onclick="seleccionarModelo(this)"' : '' ?>>
-          <?php if ($sin_stock): ?>
-            <div class="stock-overlay">SIN STOCK</div>
-          <?php endif; ?>
-          <img src="../assets/images/<?= htmlspecialchars($model['image']) ?>" alt="<?= htmlspecialchars($model['title']) ?>">
-          <br>
-          <?php if ($has_discount): ?>
-             <small><del style="color: #999;">$<?= number_format($model['price'], 0) ?></del></small>
-             <strong style="color: #e74c3c;">$<?= number_format($final_price, 0) ?></strong>
-          <?php else: ?>
-             <small>$<?= number_format($model['price'], 0) ?></small>
-          <?php endif; ?>
-        </div>
-      <?php endforeach; ?>
-    </div>
-    <button type="submit" id="btn-next" class="boton-siguiente">Siguiente</button>
-  </form>
-  
-  <?php if ($discount_data): ?>
-    <div style="text-align: center; margin-top: 20px; color: #2ecc71; font-weight: bold;">
-        <i class="fas fa-tag"></i> ¡Descuento por referido aplicado!
-    </div>
-  <?php endif; ?>
-
-<?php elseif ($step == 2):
-  $model_id = $_GET['model_id'] ?? null;
-  $model_price = $_GET['model_price'] ?? 0; // Capture price
-  if (!$model_id) die("Modelo no especificado.");
-
-  $stmt = $pdo->prepare("SELECT * FROM templates WHERE user_id = ?");
-  $stmt->execute([$user_id]);
-  $plantillas = $stmt->fetchAll();
-?>
-<h2 class="titulo">2. Ingresá el texto que llevará tu sello y luego elegí un diseño</h2>
-<form method="get" action="index.php">
-  <input type="hidden" name="u" value="<?= htmlspecialchars($link_code) ?>">
-  <input type="hidden" name="step" value="3">
-  <input type="hidden" name="model_id" value="<?= htmlspecialchars($model_id) ?>">
-  <input type="hidden" name="model_price" value="<?= htmlspecialchars($model_price) ?>">
-  <input type="hidden" name="template_id" value="" required>
-
-  <div class="form-container">
-    <div class="input-line-item">
-        <input type="text" name="linea1" placeholder="Línea 1" id="linea1_input" value="<?= htmlspecialchars($contenido['linea1'] ?? '') ?>" required>
-        <input type="checkbox" id="chk_linea1" <?= !empty($contenido['linea1']) ? 'checked' : '' ?> disabled>
-    </div>
-    <div class="input-line-item">
-        <input type="text" name="linea2" placeholder="Línea 2" id="linea2_input" value="<?= htmlspecialchars($contenido['linea2'] ?? '') ?>">
-        <input type="checkbox" id="chk_linea2" <?= !empty($contenido['linea2']) ? 'checked' : '' ?> >
-    </div>
-    <div class="input-line-item">
-        <input type="text" name="linea3" placeholder="Línea 3" id="linea3_input" value="<?= htmlspecialchars($contenido['linea3'] ?? '') ?>">
-        <input type="checkbox" id="chk_linea3" <?= !empty($contenido['linea3']) ? 'checked' : '' ?> >
-    </div>
-    <div class="input-line-item">
-        <input type="text" name="linea4" placeholder="Línea 4" id="linea4_input" value="<?= htmlspecialchars($contenido['linea4'] ?? '') ?>">
-        <input type="checkbox" id="chk_linea4" <?= !empty($contenido['linea4']) ? 'checked' : '' ?> >
-    </div>
-  
-    <hr style="margin: 20px 0;">
-
-    <div class="modelo-lista">
-        <?php foreach ($plantillas as $plantilla): ?>
-          <?php $contenido = json_decode($plantilla["content"], true); ?>
-          <label class="plantilla-item"
-                 data-template-id="<?= $plantilla['id'] ?>"
-                 data-template-data='<?= htmlspecialchars(json_encode([
-                     'id' => $plantilla['id'],
-                     'linea1' => ['texto' => $contenido['linea1'] ?? '', 'fuente' => $plantilla['fuente_linea_1'], 'tamano' => $plantilla['tamano_linea_1'], 'negrita' => !empty($plantilla['bold_linea_1']), 'alineacion' => $plantilla['alineacion_linea_1'], 'margen' => $plantilla['margen_top_linea_1'], 'mayuscula' => !empty($plantilla['mayus_linea_1'])],
-                     'linea2' => ['texto' => $contenido['linea2'] ?? '', 'fuente' => $plantilla['fuente_linea_2'], 'tamano' => $plantilla['tamano_linea_2'], 'negrita' => !empty($plantilla['bold_linea_2']), 'alineacion' => $plantilla['alineacion_linea_2'], 'margen' => $plantilla['margen_top_linea_2'], 'mayuscula' => !empty($plantilla['mayus_linea_2'])],
-                     'linea3' => ['texto' => $contenido['linea3'] ?? '', 'fuente' => $plantilla['fuente_linea_3'], 'tamano' => $plantilla['tamano_linea_3'], 'negrita' => !empty($plantilla['bold_linea_3']), 'alineacion' => $plantilla['alineacion_linea_3'], 'margen' => $plantilla['margen_top_linea_3'], 'mayuscula' => !empty($plantilla['mayus_linea_3'])],
-                     'linea4' => ['texto' => $contenido['linea4'] ?? '', 'fuente' => $plantilla['fuente_linea_4'], 'tamano' => $plantilla['tamano_linea_4'], 'negrita' => !empty($plantilla['bold_linea_4']), 'alineacion' => $plantilla['alineacion_linea_4'], 'margen' => $plantilla['margen_top_linea_4'], 'mayuscula' => !empty($plantilla['mayus_linea_4'])]
-                 ]), ENT_QUOTES, 'UTF-8') ?>'>
-            <div class="plantilla-preview-container-scaled">
-              <div class="plantilla-preview-wrapper" id="template-preview-<?= $plantilla['id'] ?>">
-                  <?php include '../admin/includes/_plantilla_preview.php'; ?>
-              </div>
-            </div>
-            <button type="button" class="btn-elegir" style="display: none;" data-template-id="<?= $plantilla['id'] ?>">ELEGIR</button>
-          </label>
-        <?php endforeach; ?>
-    </div>
-  </div>
-  <button type="submit" class="boton-siguiente active">Siguiente</button>
-</form>
-<?php elseif ($step == 3):
-  // 1. Recuperar datos del paso anterior
-  $model_id = $_GET['model_id'] ?? null;
-  $template_id = $_GET['template_id'] ?? null;
-  $model_price = $_GET['model_price'] ?? 0; // Capture price
-  if (!$model_id || !$template_id) die("Faltan datos para continuar.");
-
-  // 2. Obtener datos de la plantilla base
-  $stmt = $pdo->prepare("SELECT * FROM templates WHERE id = ?");
-  $stmt->execute([$template_id]);
-  $plantilla_base = $stmt->fetch(PDO::FETCH_ASSOC);
-  if (!$plantilla_base) die("Plantilla no encontrada.");
-
-  // Decodificar el contenido original de la plantilla
-  $contenido_base = json_decode($plantilla_base['content'], true);
-
-  // 3. Recuperar texto del usuario (asumiendo que viene de Step 2)
-  $lineas_texto = [
-      1 => $_GET['linea1'] ?? ($contenido_base['linea1'] ?? ''),
-      2 => $_GET['linea2'] ?? ($contenido_base['linea2'] ?? ''),
-      3 => $_GET['linea3'] ?? ($contenido_base['linea3'] ?? ''),
-      4 => $_GET['linea4'] ?? ($contenido_base['linea4'] ?? '')
-  ];
-
-  // Preparar datos iniciales para la vista previa y JavaScript
-  $initial_template_data = [
-      'id' => $plantilla_base['id'],
-      'linea1' => [
-          'texto' => $lineas_texto[1],
-          'fuente' => $plantilla_base['fuente_linea_1'],
-          'tamano' => $plantilla_base['tamano_linea_1'],
-          'negrita' => !empty($plantilla_base['bold_linea_1']),
-          'alineacion' => $plantilla_base['alineacion_linea_1'],
-          'margen' => $plantilla_base['margen_top_linea_1'],
-          'mayuscula' => !empty($plantilla_base['mayus_linea_1'])
-      ],
-      'linea2' => [
-          'texto' => $lineas_texto[2],
-          'fuente' => $plantilla_base['fuente_linea_2'],
-          'tamano' => $plantilla_base['tamano_linea_2'],
-          'negrita' => !empty($plantilla_base['bold_linea_2']),
-          'alineacion' => $plantilla_base['alineacion_linea_2'],
-          'margen' => $plantilla_base['margen_top_linea_2'],
-          'mayuscula' => !empty($plantilla_base['mayus_linea_2'])
-      ],
-      'linea3' => [
-          'texto' => $lineas_texto[3],
-          'fuente' => $plantilla_base['fuente_linea_3'],
-          'tamano' => $plantilla_base['tamano_linea_3'],
-          'negrita' => !empty($plantilla_base['bold_linea_3']),
-          'alineacion' => $plantilla_base['alineacion_linea_3'],
-          'margen' => $plantilla_base['margen_top_linea_3'],
-          'mayuscula' => !empty($plantilla_base['mayus_linea_3'])
-      ],
-      'linea4' => [
-          'texto' => $lineas_texto[4],
-          'fuente' => $plantilla_base['fuente_linea_4'],
-          'tamano' => $plantilla_base['tamano_linea_4'],
-          'negrita' => !empty($plantilla_base['bold_linea_4']),
-          'alineacion' => $plantilla_base['alineacion_linea_4'],
-          'margen' => $plantilla_base['margen_top_linea_4'],
-          'mayuscula' => !empty($plantilla_base['mayus_linea_4'])
-      ]
-  ];
-  // No hay global_line_spacing aquí, ya que es por línea.
-?>
-<script>
-    // Exponer los datos iniciales de la plantilla a JavaScript
-    window.initialTemplateData = <?= json_encode($initial_template_data); ?>;
-</script>
-
-<h2 class="titulo">3. Personalizá tu diseño</h2>
-
-<form method="post" action="index.php?u=<?= htmlspecialchars($link_code) ?>&step=4">
-    <input type="hidden" name="model_id" value="<?= htmlspecialchars($model_id) ?>">
-    <input type="hidden" name="template_id" value="<?= htmlspecialchars($template_id) ?>">
-    <input type="hidden" name="model_price" value="<?= htmlspecialchars($model_price) ?>">
-
-    <div class="editor-wrapper">
-        <div class="controles-col">
-            <div class="tab-buttons">
-                <button type="button" class="tab-btn active" onclick="showTab(1)">Línea 1</button>
-                <button type="button" class="tab-btn" onclick="showTab(2)">Línea 2</button>
-                <button type="button" class="tab-btn" onclick="showTab(3)">Línea 3</button>
-                <button type="button" class="tab-btn" onclick="showTab(4)">Línea 4</button>
-            </div>
-
-            <?php for ($i = 1; $i <= 4; $i++):
-                $line_number = $i;
-                $selected_font = $plantilla_base["fuente_linea_$i"];
-            ?>
-            <div class="tab-content <?= $i == 1 ? 'active' : '' ?>" id="tab<?= $i ?>">
-                <div class="form-group" style="margin-bottom: 10px;">
-                    <label for="linea<?= $i ?>_texto_editor" style="font-weight: bold; display: block; margin-bottom: 5px;">Texto de la línea:</label>
-                    <input type="text" id="linea<?= $i ?>_texto_editor" name="linea<?= $i ?>_texto_editor" value="<?= htmlspecialchars($lineas_texto[$i] ?? '') ?>">
-                </div>
-                <div class="line-controls toolbar">
-                    
-                    <div class="toolbar-group">
-                        <?php include '../admin/includes/_font_selector.php'; ?>
-                    </div>
-
-                    <div class="toolbar-divider"></div>
-
-                    <div class="toolbar-group">
-                        <button type="button" class="btn-font-size" onclick="changeFontSize(<?= $i ?>, -1)"><i class="fas fa-minus"></i></button>
-                        <span class="current-font-size" id="tamano_display_<?= $i ?>"><?= $plantilla_base["tamano_linea_$i"] ?>px</span>
-                        <button type="button" class="btn-font-size" onclick="changeFontSize(<?= $i ?>, 1)"><i class="fas fa-plus"></i></button>
-                        <input type="hidden" name="tamano<?= $i ?>" id="tamano<?= $i ?>" value="<?= $plantilla_base["tamano_linea_$i"] ?>">
-                    </div>
-
-                    <div class="toolbar-divider"></div>
-
-                    <div class="toolbar-group">
-                        <button type="button" class="btn-margin-top" onclick="changeMarginTop(<?= $i ?>, -2)"><i class="fas fa-arrow-up"></i></button>
-                        <span class="current-font-size" id="margen_top_display_<?= $i ?>"><?= $plantilla_base["margen_top_linea_$i"] ?>px</span>
-                        <button type="button" class="btn-margin-top" onclick="changeMarginTop(<?= $i ?>, 2)"><i class="fas fa-arrow-down"></i></button>
-                        <input type="hidden" name="margen_top<?= $i ?>" id="margen_top<?= $i ?>" value="<?= $plantilla_base["margen_top_linea_$i"] ?>">
-                    </div>
-
-                    <div class="toolbar-divider"></div>
-
-                    <div class="toolbar-group alineacion-btns" data-linea="<?= $i ?>">
-                        <button type="button" onclick="setAlign(<?= $i ?>, 'left', this)"><i class="fas fa-align-left"></i></button>
-                        <button type="button" onclick="setAlign(<?= $i ?>, 'center', this)"><i class="fas fa-align-center"></i></button>
-                        <button type="button" onclick="setAlign(<?= $i ?>, 'right', this)"><i class="fas fa-align-right"></i></button>
-                        <input type="hidden" name="alineacion<?= $i ?>" id="alineacion<?= $i ?>" value="<?= $plantilla_base["alineacion_linea_$i"] ?>">
-                    </div>
-
-                    <div class="toolbar-divider"></div>
-
-                    <div class="toolbar-group">
-                        <label class="checkbox-label" for="negrita<?= $i ?>"><b>B</b></label>
-                        <input type="checkbox" class="hidden-checkbox" id="negrita<?= $i ?>" name="negrita<?= $i ?>" <?= !empty($plantilla_base["bold_linea_$i"]) ? "checked" : "" ?>>
-                        <label class="checkbox-label" for="mayuscula<?= $i ?>">AA</label>
-                        <input type="checkbox" class="hidden-checkbox" id="mayuscula<?= $i ?>" name="mayuscula<?= $i ?>" <?= !empty($plantilla_base["mayus_linea_$i"]) ? "checked" : "" ?>>
-                    </div>
-                </div>
-            </div>
-            <?php endfor; ?>
-            
-        </div>
-
-        <div class="preview-col">
-            <div id="editor-preview-container" style="transform: scale(0.8); transform-origin: center;">
-            </div>
-        </div>
-    </div>
-    <button type="submit" class="boton-siguiente active" style="margin-top: 25px;">Siguiente</button>
-</form>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.querySelector('form');
-    const previewContainer = document.getElementById('editor-preview-container');
-
-    function actualizarVistaPrevia() {
-        const datos = {
-            linea1: {},
-            linea2: {},
-            linea3: {},
-            linea4: {}
-        };
-
-        for (let i = 1; i <= 4; i++) {
-            const negritaCheckbox = form.querySelector(`input[type="checkbox"][name="negrita${i}"]`);
-            const mayusculaCheckbox = form.querySelector(`input[type="checkbox"][name="mayuscula${i}"]`);
-            datos['linea' + i] = {
-                texto: form.querySelector(`[name="linea${i}_texto_editor"]`).value,
-                fuente: form.querySelector(`[name="fuente${i}"]`).value,
-                tamano: form.querySelector(`[name="tamano${i}"]`).value,
-                negrita: negritaCheckbox ? negritaCheckbox.checked : false,
-                alineacion: form.querySelector(`[name="alineacion${i}"]`).value,
-                margen: form.querySelector(`[name="margen_top${i}"]`).value,
-                mayuscula: mayusculaCheckbox ? mayusculaCheckbox.checked : false
-            };
+    <style>
+        body {
+            background-color: #f3f4f6;
+            <?php if($user['background_image']): ?>
+            background-image: url('../assets/images/bg/<?= $user['background_image'] ?>');
+            background-size: cover; background-position: center; background-attachment: fixed;
+            <?php endif; ?>
         }
-        window.renderizarPlantilla(previewContainer, datos);
-    }
-
-    // Event listener para todos los cambios en el formulario
-    form.addEventListener('input', actualizarVistaPrevia);
-    form.addEventListener('change', actualizarVistaPrevia); // Para selects y checkboxes
-
-    // Funciones auxiliares para botones
-    window.showTab = function(n) {
-        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-        document.getElementById('tab' + n).classList.add('active');
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        form.querySelector(`.tab-buttons button:nth-child(${n})`).classList.add('active');
-        actualizarVistaPrevia();
-    }
-
-    window.setAlign = function(linea, direccion, btn) {
-        document.getElementById('alineacion' + linea).value = direccion;
-        const parent = btn.parentElement;
-        parent.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        actualizarVistaPrevia();
-    }
-
-    window.changeFontSize = function(linea, change) {
-        const input = document.querySelector(`input[name="tamano${linea}"]`);
-        const display = document.getElementById(`tamano_display_${linea}`);
-        let currentValue = parseInt(input.value, 10);
-        currentValue += change;
-        if (currentValue < 8) currentValue = 8;
-        if (currentValue > 100) currentValue = 100;
-        input.value = currentValue;
-        if (display) {
-            display.textContent = currentValue + 'px';
-        }
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-
-    window.changeMarginTop = function(linea, change) {
-        const input = document.querySelector(`input[name="margen_top${linea}"]`);
-        const display = document.getElementById(`margen_top_display_${linea}`);
-        let currentValue = parseInt(input.value, 10);
-        currentValue += change;
-        if (currentValue < -50) currentValue = -50;
-        if (currentValue > 150) currentValue = 150;
-        input.value = currentValue;
-        if (display) {
-            display.textContent = currentValue + 'px';
-        }
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-
-    // Renderizado inicial
-    actualizarVistaPrevia();
-
-    // Seteado inicial de botones de alineación
-    for (let i = 1; i <= 4; i++) {
-        const alignValue = document.getElementById('alineacion' + i).value;
-        const alignButton = form.querySelector(`.alineacion-btns[data-linea="${i}"] button[onclick*="'${alignValue}'"]`);
-        if (alignButton) {
-            alignButton.classList.add('active');
-        }
-    }
-
-    // Script for custom checkbox labels
-    document.querySelectorAll('.checkbox-label').forEach(label => {
-        const checkbox = document.getElementById(label.getAttribute('for'));
-        if (!checkbox) return;
-
-        const updateLabelState = () => {
-            if (checkbox.checked) {
-                label.classList.add('checked');
-            } else {
-                label.classList.remove('checked');
-            }
-        };
-
-        checkbox.addEventListener('change', updateLabelState);
-        updateLabelState(); // Set initial state
-    });
-});
-</script>
-<?php elseif ($step == 4):
-    // Recoger todos los datos de personalización del paso 3
-    $custom_data = array_merge($_GET, $_POST);
-?>
-<h2 class="titulo">4. Ingresá tus datos para finalizar</h2>
-<form method="post" action="submit_order.php">
-    <?php
-    // Reenviar todos los datos personalizados como campos ocultos
-    foreach ($custom_data as $key => $value) {
-        if ($key !== 'step') { // No reenviar el 'step' para evitar confusiones
-             echo '<input type="hidden" name="' . htmlspecialchars($key) . '" value="' . htmlspecialchars($value) . '">' . "\n";
-        }
-    }
-    ?>
-
-    <div class="form-container">
-        <div style="display: flex; gap: 20px; margin-bottom: 10px;">
-            <div style="flex: 1;">
-                <label for="name" style="display:block; margin-bottom:5px;">Nombre</label>
-                <input type="text" id="name" name="name" required>
-            </div>
-            <div style="flex: 1;">
-                <label for="lastname" style="display:block; margin-bottom:5px;">Apellido</label>
-                <input type="text" id="lastname" name="lastname" required>
-            </div>
-        </div>
-        <div style="margin-bottom: 10px;">
-            <label for="email" style="display:block; margin-bottom:5px;">Email</label>
-            <input type="email" id="email" name="email" required>
-        </div>
-        <div style="margin-bottom: 10px;">
-            <label for="phone" style="display:block; margin-bottom:5px;">Teléfono</label>
-            <input type="tel" id="phone" name="phone" required>
-        </div>
-        <div style="margin-bottom: 10px;">
-            <label for="address" style="display:block; margin-bottom:5px;">Dirección</label>
-            <input type="text" id="address" name="address" required>
-        </div>
-        <div>
-            <label for="comments" style="display:block; margin-bottom:5px;">Comentarios o Indicaciones</label>
-            <textarea id="comments" name="comments" rows="3" placeholder="si tienes alguna indicación extra para tu pedido o la entrega"></textarea>
-        </div>
-    </div>
-
-    <button type="submit" class="boton-siguiente active">Finalizar y Pedir</button>
-</form>
-<?php endif; ?>
-
-</div>
-
-<footer style="background-color: #fff; border: 1px solid #ccc; padding: 10px 20px; font-family: Roboto, sans-serif; border-radius: 8px; width: calc(85% - 20px); max-width: 95%; text-align: center; margin: 40px auto 20px auto;">
-  <?= isset($user['footer']) ? $user['footer'] : '' ?>
-</footer>
-
-<script src="../assets/js/plantilla-renderer.js"></script>
-<script>
-let currentTemplateData = null;
-
-function seleccionarModelo(el) {
-    document.querySelectorAll('.modelo-card').forEach(card => card.classList.remove('active'));
-    el.classList.add('active');
-    
-    const modelIdInput = document.getElementById('model_id');
-    const modelPriceInput = document.getElementById('model_price');
-
-    if (modelIdInput) modelIdInput.value = el.dataset.modelId;
-    if (modelPriceInput) modelPriceInput.value = el.dataset.price;
-
-    const nextBtn = document.getElementById('btn-next');
-    if (nextBtn) nextBtn.classList.add('active');
-}
-
-function seleccionarPlantilla(el, templateId) {
-    document.querySelectorAll('.plantilla-item').forEach(card => {
-        card.classList.remove('active');
-        const elegirBtn = card.querySelector('.btn-elegir');
-        if (elegirBtn) elegirBtn.style.display = 'none'; // Hide all buttons
-    });
-    el.classList.add('active');
-    const selectedElegirBtn = el.querySelector('.btn-elegir');
-    if (selectedElegirBtn) selectedElegirBtn.style.display = 'block'; // Show selected button
-    document.querySelector('input[name="template_id"]').value = templateId;
-
-    // Obtener los datos de la plantilla seleccionada
-    const templateDataAttr = el.getAttribute('data-template-data');
-    const templateData = JSON.parse(templateDataAttr);
-
-    // Actualizar los inputs de texto y checkboxes
-    for (let i = 1; i <= 4; i++) {
-        const inputElement = document.getElementById(`linea${i}_input`);
-        const checkboxElement = document.getElementById(`chk_linea${i}`);
-        const lineaData = templateData[`linea${i}`];
-
-        if (inputElement && lineaData) {
-            if (inputElement.value.trim() === '') {
-                inputElement.value = lineaData.texto || '';
-            }
-        }
-        if (checkboxElement && lineaData) {
-            checkboxElement.checked = !!inputElement.value.trim(); // <--- MODIFIED THIS LINE
-        }
-    }
-
-    updateDisabledStates(); // Actualizar el estado de deshabilitado de los checkboxes
-    updateRealtimePreview(); // Llama a la función para actualizar la vista previa
-}
-
-function updateRealtimePreview() {
-    document.querySelectorAll('.plantilla-item[data-template-id]').forEach(card => {
-        const templateId = card.getAttribute('data-template-id');
-        const templateDataAttr = card.getAttribute('data-template-data');
-        if (!templateDataAttr) return;
-
-        const templateData = JSON.parse(templateDataAttr);
-        const previewWrapper = document.getElementById('template-preview-' + templateId);
-        const previewContainer = previewWrapper ? previewWrapper.querySelector('.plantilla-preview-container') : null;
-        if (!previewContainer) return;
-
-        const datosParaRender = JSON.parse(JSON.stringify(templateData));
-
-        for (let i = 1; i <= 4; i++) {
-            const inputElement = document.getElementById(`linea${i}_input`);
-            const checkboxElement = document.getElementById(`chk_linea${i}`);
-
-            // Si el checkbox existe y no está marcado, la línea se oculta (texto vacío).
-            if (checkboxElement && !checkboxElement.checked) {
-                datosParaRender[`linea${i}`].texto = '';
-            } else if (inputElement && inputElement.value) {
-                // Si el campo de texto tiene valor, se usa ese valor.
-                datosParaRender[`linea${i}`].texto = inputElement.value;
-            }
-            // Si ninguna de las condiciones anteriores se cumple, se usa el texto por defecto de la plantilla,
-            // que ya está cargado en datosParaRender.
-        }
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.5); }
+        .plantilla-preview-container { box-sizing: content-box !important; }
+        .preview-scale-wrapper { transform-origin: center center; }
         
-        window.renderizarPlantilla(previewContainer, datosParaRender);
-    });
-}
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
+    </style>
+</head>
+<body class="font-sans antialiased min-h-screen flex flex-col">
 
-function updateDisabledStates() {
-    for (let i = 2; i <= 4; i++) {
-        const chk = document.getElementById(`chk_linea${i}`);
-        if (!chk) continue;
+    <!-- Header -->
+    <header class="bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100 sticky top-0 z-50">
+        <div class="max-w-3xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <?php if($user['logo']): ?>
+                    <img src="../assets/images/<?= htmlspecialchars($user['logo']) ?>" class="h-10 w-auto object-contain">
+                <?php endif; ?>
+                <span class="text-lg font-bold text-gray-800 border-l border-gray-200 pl-3 leading-none"><?= htmlspecialchars($user['name']) ?></span>
+            </div>
+            <a href="https://wa.me/+549<?= preg_replace('/[^0-9]/i', '', $user['whatsapp']) ?>" target="_blank" class="text-green-600 transition-colors">
+                <i class="fab fa-whatsapp text-2xl"></i>
+            </a>
+        </div>
+    </header>
 
-        const prevChk = document.getElementById(`chk_linea${i - 1}`);
-        const nextChk = document.getElementById(`chk_linea${i + 1}`);
+    <main class="flex-grow flex items-center justify-center p-4">
+        <div class="w-full max-w-lg mx-auto">
+            
+            <?php if (!$step): ?>
+                <!-- PASO 0: BIENVENIDA -->
+                <div class="glass-card rounded-3xl shadow-xl p-8 text-center" data-aos="zoom-in">
+                    <div class="w-20 h-20 bg-brand-50 rounded-full flex items-center justify-center mx-auto mb-6"><i class="fas fa-stamp text-brand-600 text-3xl"></i></div>
+                    <h1 class="text-2xl font-bold text-gray-800 mb-4">¡Hola! 👋</h1>
+                    <div class="text-gray-600 mb-8 leading-relaxed"><?= !empty($user['welcome']) ? nl2br(htmlspecialchars($user['welcome'])) : 'Bienvenido al asistente de pedidos.' ?></div>
+                    <form action="index.php" method="get">
+                        <input type="hidden" name="u" value="<?= htmlspecialchars($link_code) ?>">
+                        <input type="hidden" name="step" value="1">
+                        <button type="submit" class="w-full py-4 bg-brand-600 text-white rounded-xl font-bold text-lg shadow-lg hover:bg-brand-700 transition-all transform hover:-translate-y-1">Comenzar Pedido <i class="fas fa-arrow-right ml-2"></i></button>
+                    </form>
+                </div>
 
-        let shouldBeDisabled = false;
-        if (chk.checked) {
-            // Si está marcado, no se puede desmarcar si el siguiente está marcado.
-            if (nextChk && nextChk.checked) {
-                shouldBeDisabled = true;
-            }
-        } else {
-            // Si está desmarcado, no se puede marcar si el anterior no está marcado.
-            if (prevChk && !prevChk.checked) {
-                shouldBeDisabled = true;
-            }
-        }
-        chk.disabled = shouldBeDisabled;
-    }
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    const currentStep = "<?= htmlspecialchars($step ?? '') ?>";
-
-    if (currentStep === '2') {
-        // Initial render of previews with default text
-        document.querySelectorAll('.plantilla-item[data-template-id]').forEach(card => {
-            const templateDataAttr = card.getAttribute('data-template-data');
-            if (!templateDataAttr) return;
-            const templateData = JSON.parse(templateDataAttr);
-            const previewWrapper = document.getElementById('template-preview-' + templateData.id);
-            const previewContainer = previewWrapper ? previewWrapper.querySelector('.plantilla-preview-container') : null;
-            if (previewContainer) {
-                window.renderizarPlantilla(previewContainer, templateData);
-            }
-        });
-
-        document.querySelectorAll('input[id^="linea"]').forEach(input => {
-            input.addEventListener('input', updateRealtimePreview);
-        });
-
-        document.querySelectorAll('input[id^="chk_linea"]').forEach(checkbox => {
-            if (!checkbox.disabled) {
-                checkbox.addEventListener('change', () => {
-                    updateDisabledStates();
-                    updateRealtimePreview();
-                });
-            }
-        });
-
-        // Initial state setup
-        updateDisabledStates();
-
-        document.querySelectorAll('.plantilla-item').forEach(card => {
-            card.addEventListener('click', (event) => {
-                // Prevent default form submission if the click is not on the button
-                if (!event.target.classList.contains('btn-elegir')) {
-                    event.preventDefault(); // Add this line
-                    seleccionarPlantilla(card, card.dataset.templateId);
-                }
-            });
-        });
-
-        // Pre-select the first template without affecting inputs
-        const firstTemplate = document.querySelector('.plantilla-item');
-        if (firstTemplate) {
-            seleccionarPlantilla(firstTemplate, firstTemplate.dataset.templateId);
-        }
-
-        // Event listener for ELEGIR buttons
-        document.querySelectorAll('.btn-elegir').forEach(button => {
-            button.addEventListener('click', () => {
-                const templateId = button.dataset.templateId;
-                document.querySelector('input[name="template_id"]').value = templateId;
-                // Submit the form
-                button.closest('form').submit();
-            });
-        });
-    }
-
-    // --- LÓGICA DEL EDITOR (PASO 3) ---
-    if (currentStep === '3') {
-        const form = document.querySelector('form');
-        const previewContainer = document.getElementById('editor-preview-container');
-
-        // Get references to the new global controls
-        const fontSizeSlider = document.getElementById('font-size-slider');
-        const fontSizeValueSpan = document.getElementById('font-size-value');
-        const lineSpacingSlider = document.getElementById('line-spacing-slider');
-        const lineSpacingValueSpan = document.getElementById('line-spacing-value');
-        const boldCheckbox = document.getElementById('bold-checkbox');
-
-        // Initial display of slider values
-        if (fontSizeSlider && fontSizeValueSpan) {
-            fontSizeValueSpan.textContent = `${fontSizeSlider.value}px`;
-        }
-        if (lineSpacingSlider && lineSpacingValueSpan) {
-            lineSpacingValueSpan.textContent = lineSpacingSlider.value;
-        }
-
-        window.actualizarVistaPreviaEditor = function() {
-            // Read current values from global controls
-            const currentGlobalFontSize = fontSizeSlider ? parseInt(fontSizeSlider.value) : 24;
-            const currentGlobalLineSpacing = lineSpacingSlider ? parseFloat(lineSpacingSlider.value) : 1.2;
-            const currentGlobalBold = boldCheckbox ? boldCheckbox.checked : false;
-
-            // Start with the initial data provided by PHP
-            const datosParaRender = JSON.parse(JSON.stringify(window.initialTemplateData)); // Deep copy
-
-            // Asegurarse de que la estructura HTML básica exista en el previewContainer
-            if (previewContainer.innerHTML.trim() === '') {
-                previewContainer.innerHTML = `
-                    <div class="plantilla-preview-container">
-                        <div class="plantilla-linea plantilla-linea-1"></div>
-                        <div class="plantilla-linea plantilla-linea-2"></div>
-                        <div class="plantilla-linea plantilla-linea-3"></div>
-                        <div class="plantilla-linea plantilla-linea-4"></div>
+            <?php elseif ($step == 1): ?>
+                <!-- PASO 1: ELEGIR MODELO -->
+                <div data-aos="fade-up">
+                    <div class="text-center mb-6">
+                        <span class="bg-brand-100 text-brand-600 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">Paso 1 de 4</span>
+                        <h2 class="text-2xl font-bold text-gray-800 mt-2">Elige tu Modelo</h2>
                     </div>
-                `;
-            }
+                    <form method="get" action="index.php" id="form-modelos">
+                        <input type="hidden" name="u" value="<?= htmlspecialchars($link_code) ?>">
+                        <input type="hidden" name="step" value="2">
+                        <input type="hidden" name="model_id" id="model_id">
+                        <input type="hidden" name="model_price" id="model_price">
+                        <div class="grid grid-cols-2 gap-4">
+                            <?php foreach ($models as $model): 
+                                $sin_stock = $model['stock'] == 0; 
+                                $final_price = $model['price'];
+                                if ($discount_data) {
+                                    $discount_amount = ($discount_data['type'] === 'percent') ? $model['price'] * ($discount_data['value'] / 100) : $discount_data['value'];
+                                    $final_price = max(0, $model['price'] - $discount_amount);
+                                }
+                            ?>
+                                <div class="glass-card rounded-2xl p-4 flex flex-col items-center cursor-pointer transition-all border border-transparent hover:border-brand-500 hover:shadow-lg relative group <?= $sin_stock ? 'opacity-60 pointer-events-none grayscale' : '' ?>" 
+                                     onclick="<?= !$sin_stock ? "seleccionarModelo({$model['id']}, {$final_price})" : '' ?>">
+                                    <?php if ($sin_stock): ?><div class="absolute inset-0 z-10 flex items-center justify-center"><span class="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded shadow">SIN STOCK</span></div><?php endif; ?>
+                                    <div class="h-24 flex items-center justify-center mb-3"><img src="../assets/images/<?= htmlspecialchars($model['image']) ?>" class="max-h-full max-w-full object-contain"></div>
+                                    <h3 class="font-bold text-gray-800 text-sm text-center leading-tight mb-1"><?= htmlspecialchars($model['title']) ?></h3>
+                                    <div class="mt-auto pt-2"><span class="text-brand-600 font-extrabold text-lg">$<?= number_format($final_price, 0, ',', '.') ?></span></div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </form>
+                </div>
 
-            // Aplicar valores de los controles por línea
-            for (let i = 1; i <= 4; i++) {
-                if (datosParaRender[`linea${i}`]) {
-                    const textoEditorInput = form.querySelector(`[name="linea${i}_texto_editor"]`);
-                    const fuenteSelect = form.querySelector(`[name="fuente${i}"]`);
-                    const tamanoInput = form.querySelector(`[name="tamano${i}"]`);
-                    const negritaCheckbox = form.querySelector(`[name="negrita${i}"]`);
-                    const alineacionInput = form.querySelector(`[name="alineacion${i}"]`);
-                    const margenTopInput = form.querySelector(`[name="margen_top${i}"]`);
-                    const mayusculaCheckbox = form.querySelector(`[name="mayuscula${i}"]`);
-
-                    datosParaRender[`linea${i}`].texto = textoEditorInput ? textoEditorInput.value : '';
-                    datosParaRender[`linea${i}`].fuente = fuenteSelect ? fuenteSelect.value : datosParaRender[`linea${i}`].fuente; // Mantener la fuente inicial si no hay selector
-                    datosParaRender[`linea${i}`].tamano = tamanoInput ? parseInt(tamanoInput.value) : datosParaRender[`linea${i}`].tamano;
-                    datosParaRender[`linea${i}`].negrita = negritaCheckbox ? negritaCheckbox.checked : datosParaRender[`linea${i}`].negrita;
-                    datosParaRender[`linea${i}`].alineacion = alineacionInput ? alineacionInput.value : datosParaRender[`linea${i}`].alineacion;
-                    datosParaRender[`linea${i}`].margen = margenTopInput ? parseInt(margenTopInput.value) : datosParaRender[`linea${i}`].margen;
-                    datosParaRender[`linea${i}`].mayuscula = mayusculaCheckbox ? mayusculaCheckbox.checked : datosParaRender[`linea${i}`].mayuscula;
+            <?php elseif ($step == 2): 
+                $model_id = $_GET['model_id']; $model_price = $_GET['model_price'];
+                $stmt = $pdo->prepare("SELECT * FROM templates WHERE user_id = ?"); $stmt->execute([$user_id]); $plantillas = $stmt->fetchAll();
+                if (empty($contenido) && !isset($_GET['linea1']) && !empty($plantillas)) {
+                    $ftc = json_decode($plantillas[0]['content'], true);
+                    $contenido = ['linea1' => $ftc['linea1'] ?? '', 'linea2' => $ftc['linea2'] ?? '', 'linea3' => $ftc['linea3'] ?? '', 'linea4' => $ftc['linea4'] ?? ''];
                 }
+                if (isset($_GET['linea1'])) { $contenido = ['linea1' => $_GET['linea1'], 'linea2' => $_GET['linea2'], 'linea3' => $_GET['linea3'], 'linea4' => $_GET['linea4']]; }
+            ?>
+                <!-- PASO 2: DATOS Y PLANTILLA -->
+                <div data-aos="fade-left">
+                    <div class="text-center mb-6">
+                        <span class="bg-brand-100 text-brand-600 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">Paso 2 de 4</span>
+                        <h2 class="text-2xl font-bold text-gray-800 mt-2">Personaliza el Texto</h2>
+                    </div>
+                    <form method="get" action="index.php" id="form-datos">
+                        <input type="hidden" name="u" value="<?= htmlspecialchars($link_code) ?>">
+                        <?php if ($editing_order_id): ?> <input type="hidden" name="order_id" value="<?= htmlspecialchars($editing_order_id) ?>"> <?php endif; ?>
+                        <input type="hidden" name="step" value="3">
+                        <input type="hidden" name="model_id" value="<?= htmlspecialchars($model_id) ?>">
+                        <input type="hidden" name="model_price" value="<?= htmlspecialchars($model_price) ?>">
+                        <input type="hidden" name="template_id" id="template_id" required>
+
+                        <div class="glass-card rounded-2xl p-6 mb-6 space-y-4 shadow-sm border border-gray-100">
+                            <?php for($i=1; $i<=4; $i++): ?>
+                                <div class="flex items-center gap-3">
+                                    <div class="relative flex-grow">
+                                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 font-bold text-xs">L<?= $i ?></span>
+                                        <input type="text" name="linea<?= $i ?>" id="linea<?= $i ?>_input" value="<?= htmlspecialchars($contenido['linea'.$i] ?? '') ?>" class="w-full pl-8 pr-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-brand-500 bg-white/50 text-sm shadow-inner" <?= $i==1 ? 'required' : '' ?>> 
+                                    </div>
+                                    <input type="checkbox" name="chk_linea<?= $i ?>" id="chk_linea<?= $i ?>" <?= ($i==1 || !empty($contenido['linea'.$i])) ? 'checked' : '' ?> class="w-5 h-5 rounded text-brand-600 focus:ring-brand-500 border-gray-300">
+                                </div>
+                            <?php endfor; ?>
+                        </div>
+
+                        <h3 class="font-bold text-gray-700 mb-3 px-2 text-center uppercase tracking-widest text-xs">Selecciona un Diseño</h3>
+                        <div class="space-y-6">
+                            <?php foreach ($plantillas as $plantilla): ?>
+                                <?php $contenido_p = json_decode($plantilla["content"], true); ?>
+                                <div class="plantilla-item glass-card rounded-2xl overflow-hidden cursor-pointer border-2 border-transparent transition-all hover:shadow-xl relative h-44 w-full" 
+                                     data-template-id="<?= $plantilla['id'] ?>" 
+                                     onclick="seleccionarPlantilla(this, <?= $plantilla['id'] ?>)" 
+                                     data-template-data='<?= htmlspecialchars(json_encode([
+                                         'id' => $plantilla['id'],
+                                         'linea1' => ['texto' => $contenido_p['linea1'] ?? '', 'fuente' => $plantilla['fuente_linea_1'], 'tamano' => $plantilla['tamano_linea_1'], 'negrita' => !empty($plantilla['bold_linea_1']), 'alineacion' => $plantilla['alineacion_linea_1'], 'margen' => $plantilla['margen_top_linea_1'], 'mayuscula' => !empty($plantilla['mayus_linea_1'])],
+                                         'linea2' => ['texto' => $contenido_p['linea2'] ?? '', 'fuente' => $plantilla['fuente_linea_2'], 'tamano' => $plantilla['tamano_linea_2'], 'negrita' => !empty($plantilla['bold_linea_2']), 'alineacion' => $plantilla['alineacion_linea_2'], 'margen' => $plantilla['margen_top_linea_2'], 'mayuscula' => !empty($plantilla['mayus_linea_2'])],
+                                         'linea3' => ['texto' => $contenido_p['linea3'] ?? '', 'fuente' => $plantilla['fuente_linea_3'], 'tamano' => $plantilla['tamano_linea_3'], 'negrita' => !empty($plantilla['bold_linea_3']), 'alineacion' => $plantilla['alineacion_linea_3'], 'margen' => $plantilla['margen_top_linea_3'], 'mayuscula' => !empty($plantilla['mayus_linea_3'])],
+                                         'linea4' => ['texto' => $contenido_p['linea4'] ?? '', 'fuente' => $plantilla['fuente_linea_4'], 'tamano' => $plantilla['tamano_linea_4'], 'negrita' => !empty($plantilla['bold_linea_4']), 'alineacion' => $plantilla['alineacion_linea_4'], 'margen' => $plantilla['margen_top_linea_4'], 'mayuscula' => !empty($plantilla['mayus_linea_4'])]
+                                     ]), ENT_QUOTES, 'UTF-8') ?>'>
+                                    <div class="absolute inset-0 bg-white flex items-center justify-center p-4">
+                                        <div class="preview-scale-wrapper pointer-events-none transform scale-[0.85] sm:scale-100">
+                                            <div id="template-preview-<?= $plantilla['id'] ?>">
+                                                <div class="plantilla-preview-container">
+                                                    <div class="plantilla-linea plantilla-linea-1"></div>
+                                                    <div class="plantilla-linea plantilla-linea-2"></div>
+                                                    <div class="plantilla-linea plantilla-linea-3"></div>
+                                                    <div class="plantilla-linea plantilla-linea-4"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="absolute inset-0 bg-black/20 hidden btn-overlay flex items-center justify-center transition-all backdrop-blur-[2px]">
+                                        <button type="submit" class="bg-brand-600 text-white font-black py-3 px-10 rounded-full shadow-2xl hover:bg-brand-700 transform hover:scale-110 transition-all text-base tracking-widest uppercase">ELEGIR DISEÑO</button>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <button type="submit" id="btn-next-step2" class="hidden"></button>
+                    </form>
+                </div>
+
+            <?php elseif ($step == 3): 
+                $model_id = $_GET['model_id']; $template_id = $_GET['template_id']; $model_price = $_GET['model_price'];
+                $stmt = $pdo->prepare("SELECT * FROM templates WHERE id = ?"); $stmt->execute([$template_id]);
+                $plantilla_base = $stmt->fetch(PDO::FETCH_ASSOC);
+                $lineas_texto = [1 => $_GET['linea1'] ?? '', 2 => $_GET['linea2'] ?? '', 3 => $_GET['linea3'] ?? '', 4 => $_GET['linea4'] ?? ''];
+                $lineas_activas = [1 => true];
+                for ($i=2; $i<=4; $i++) $lineas_activas[$i] = $editing_order_id ? !empty($lineas_texto[$i]) : isset($_GET["chk_linea$i"]);
+                function getStyle($edit_styles, $idx, $key, $default) { return ($edit_styles && isset($edit_styles[$key][$idx])) ? $edit_styles[$key][$idx] : $default; } 
+                $initial_template_data = [
+                    'id' => $plantilla_base['id'],
+                    'linea1' => ['texto' => $lineas_texto[1], 'fuente' => getStyle($edit_styles, 0, 'fuente', $plantilla_base['fuente_linea_1']), 'tamano' => getStyle($edit_styles, 0, 'tamano', $plantilla_base['tamano_linea_1']), 'negrita' => getStyle($edit_styles, 0, 'bold', !empty($plantilla_base['bold_linea_1'])), 'alineacion' => getStyle($edit_styles, 0, 'alineacion', $plantilla_base['alineacion_linea_1']), 'margen' => getStyle($edit_styles, 0, 'margen_top', $plantilla_base['margen_top_linea_1']), 'mayuscula' => getStyle($edit_styles, 0, 'mayuscula', !empty($plantilla_base['mayus_linea_1']))],
+                    'linea2' => ['texto' => $lineas_texto[2], 'fuente' => getStyle($edit_styles, 1, 'fuente', $plantilla_base['fuente_linea_2']), 'tamano' => getStyle($edit_styles, 1, 'tamano', $plantilla_base['tamano_linea_2']), 'negrita' => getStyle($edit_styles, 1, 'bold', !empty($plantilla_base['bold_linea_2'])), 'alineacion' => getStyle($edit_styles, 1, 'alineacion', $plantilla_base['alineacion_linea_2']), 'margen' => getStyle($edit_styles, 1, 'margen_top', $plantilla_base['margen_top_linea_2']), 'mayuscula' => getStyle($edit_styles, 1, 'mayuscula', !empty($plantilla_base['mayus_linea_2']))],
+                    'linea3' => ['texto' => $lineas_texto[3], 'fuente' => getStyle($edit_styles, 2, 'fuente', $plantilla_base['fuente_linea_3']), 'tamano' => getStyle($edit_styles, 2, 'tamano', $plantilla_base['tamano_linea_3']), 'negrita' => getStyle($edit_styles, 2, 'bold', !empty($plantilla_base['bold_linea_3'])), 'alineacion' => getStyle($edit_styles, 2, 'alineacion', $plantilla_base['alineacion_linea_3']), 'margen' => getStyle($edit_styles, 2, 'margen_top', $plantilla_base['margen_top_linea_3']), 'mayuscula' => getStyle($edit_styles, 2, 'mayuscula', !empty($plantilla_base['mayus_linea_3']))],
+                    'linea4' => ['texto' => $lineas_texto[4], 'fuente' => getStyle($edit_styles, 3, 'fuente', $plantilla_base['fuente_linea_4']), 'tamano' => getStyle($edit_styles, 3, 'tamano', $plantilla_base['tamano_linea_4']), 'negrita' => getStyle($edit_styles, 3, 'bold', !empty($plantilla_base['bold_linea_4'])), 'alineacion' => getStyle($edit_styles, 3, 'alineacion', $plantilla_base['alineacion_linea_4']), 'margen' => getStyle($edit_styles, 3, 'margen_top', $plantilla_base['margen_top_linea_4']), 'mayuscula' => getStyle($edit_styles, 3, 'mayuscula', !empty($plantilla_base['mayus_linea_4']))]
+                ];
+            ?>
+                <!-- PASO 3: EDITOR -->
+                <script>window.initialTemplateData = <?= json_encode($initial_template_data); ?>;</script>
+                <div data-aos="fade-in">
+                    <div class="text-center mb-6">
+                        <span class="bg-brand-100 text-brand-600 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">Paso 3 de 4</span>
+                        <h2 class="text-2xl font-bold text-gray-800 mt-2">Personaliza el Diseño</h2>
+                    </div>
+                    <form method="post" action="index.php?u=<?= htmlspecialchars($link_code) ?>&step=4" id="editorForm">
+                        <?php if ($editing_order_id): ?> <input type="hidden" name="order_id" value="<?= $editing_order_id ?>"> <?php endif; ?>
+                        <input type="hidden" name="model_id" value="<?= $model_id ?>"> <input type="hidden" name="template_id" value="<?= $template_id ?>"> <input type="hidden" name="model_price" value="<?= $model_price ?>">
+                        
+                        <div class="grid grid-cols-1 gap-6">
+                            <div class="sticky top-4 z-20"><div class="glass-card rounded-2xl p-3 shadow-xl border border-gray-200 overflow-hidden flex justify-center"><div id="editor-preview-container" class="transform scale-[0.8] sm:scale-100"></div></div></div>
+                            <div class="glass-card rounded-2xl p-4 shadow-sm border border-gray-100">
+                                <div class="flex space-x-2 overflow-x-auto pb-2 mb-4 border-b border-gray-100">
+                                    <?php for ($i = 1; $i <= 4; $i++): if (!$lineas_activas[$i]) continue; ?>
+                                        <button type="button" onclick="showTab(<?= $i ?>)" id="tab-btn-<?= $i ?>" class="tab-btn px-4 py-2 rounded-lg text-sm font-bold transition-all bg-gray-100 text-gray-500">Línea <?= $i ?></button>
+                                    <?php endfor; ?>
+                                </div>
+                                <?php for ($i = 1; $i <= 4; $i++): if (!$lineas_activas[$i]) continue; 
+                                    $data = $initial_template_data['linea'.$i]; $line_number = $i; $selected_font = $data['fuente']; ?>
+                                    <div id="tab-content-<?= $i ?>" class="tab-content hidden space-y-5">
+                                        <div><label class="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Contenido</label>
+                                        <input type="text" name="linea<?= $i ?>_texto_editor" value="<?= htmlspecialchars($data['texto']) ?>" class="w-full px-4 py-2.5 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-brand-500 transition-all font-medium text-sm"></div>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div><label class="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Tipografía</label><div class="custom-select-wrapper w-full"><?php include '../admin/includes/_font_selector.php'; ?></div></div>
+                                            <div><label class="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Tamaño</label><div class="flex items-center border border-gray-300 rounded-xl bg-gray-50 overflow-hidden focus-within:ring-2 focus-within:ring-brand-500 transition-all">
+                                                <button type="button" class="px-4 py-2.5 text-gray-500" onclick="changeFontSize(<?= $i ?>, -1)"><i class="fas fa-minus text-xs"></i></button>
+                                                <input type="text" name="tamano<?= $i ?>" id="tamano<?= $i ?>" value="<?= $data['tamano'] ?>" class="w-full text-center border-none bg-transparent focus:ring-0 p-0 text-sm font-bold text-gray-800" readonly>
+                                                <button type="button" class="px-4 py-2.5 text-gray-500" onclick="changeFontSize(<?= $i ?>, 1)"><i class="fas fa-plus text-xs"></i></button></div></div>
+                                        </div>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div class="space-y-1.5"><label class="block text-xs font-bold text-gray-700 uppercase tracking-wide">Estilo y Alineación</label>
+                                                <div class="flex items-center gap-2"><div class="flex bg-gray-100 p-1 rounded-xl border border-gray-200">
+                                                    <input type="hidden" name="alineacion<?= $i ?>" id="alineacion<?= $i ?>" value="<?= $data['alineacion'] ?>">
+                                                    <button type="button" onclick="setAlign(<?= $i ?>, 'left', this)" class="p-2.5 w-10 text-gray-400 align-btn" data-val="left"><i class="fas fa-align-left"></i></button>
+                                                    <button type="button" onclick="setAlign(<?= $i ?>, 'center', this)" class="p-2.5 w-10 text-gray-400 align-btn" data-val="center"><i class="fas fa-align-center"></i></button>
+                                                    <button type="button" onclick="setAlign(<?= $i ?>, 'right', this)" class="p-2.5 w-10 text-gray-400 align-btn" data-val="right"><i class="fas fa-align-right"></i></button></div>
+                                                    <label class="flex items-center justify-center w-11 h-11 bg-gray-50 rounded-xl border border-gray-300 cursor-pointer shadow-sm"><input type="checkbox" name="negrita<?= $i ?>" <?= $data['negrita'] ? 'checked' : '' ?> class="hidden peer"><span class="font-black text-gray-400 peer-checked:text-brand-600 text-base transition-colors">B</span></label>
+                                                    <label class="flex items-center justify-center w-11 h-11 bg-gray-50 rounded-xl border border-gray-300 cursor-pointer shadow-sm"><input type="checkbox" name="mayuscula<?= $i ?>" <?= $data['mayuscula'] ? 'checked' : '' ?> class="hidden peer"><span class="font-bold text-gray-400 peer-checked:text-brand-600 text-xs uppercase transition-colors">AA</span></label></div></div>
+                                            <div><label class="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Posición Vertical</label><div class="flex items-center gap-3 px-3 py-2.5 bg-gray-50 rounded-xl border border-gray-300"><input type="range" name="margen_top<?= $i ?>" id="margen_top<?= $i ?>" min="-20" max="50" value="<?= $data['margen'] ?>" class="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-brand-600"></div></div>
+                                        </div>
+                                    </div>
+                                <?php endfor; ?>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full mt-8 py-4 bg-brand-600 text-white rounded-xl font-bold text-lg shadow-lg hover:bg-brand-700 transition-all uppercase tracking-wide">Finalizar Diseño <i class="fas fa-check ml-2"></i></button>
+                    </form>
+                </div>
+
+            <?php elseif ($step == 4): 
+                $custom_data = array_merge($_GET, $_POST);
+            ?>
+                <!-- PASO 4: DATOS FINALES -->
+                <div data-aos="fade-up">
+                    <div class="text-center mb-6">
+                        <span class="bg-brand-100 text-brand-600 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">Paso 4 de 4</span>
+                        <h2 class="text-2xl font-bold text-gray-800 mt-2">Detalles de Entrega</h2>
+                    </div>
+                    <form method="post" action="submit_order.php" class="glass-card rounded-3xl p-8 shadow-2xl border border-gray-100 space-y-5">
+                        <?php foreach ($custom_data as $key => $value) { if ($key !== 'step') echo '<input type="hidden" name="' . htmlspecialchars($key) . '" value="' . htmlspecialchars($value) . '">' . "\n"; } 
+                        if ($editing_order_id) echo '<input type="hidden" name="editing_order_id" value="' . htmlspecialchars($editing_order_id) . '">' . "\n"; ?>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div><label class="block text-xs font-bold text-gray-700 uppercase mb-1.5">Nombre</label>
+                            <input type="text" name="name" value="<?= htmlspecialchars($edit_data['name'] ?? '') ?>" required class="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-brand-500 transition-all text-sm font-medium"></div>
+                            <div><label class="block text-xs font-bold text-gray-700 uppercase mb-1.5">Apellido</label>
+                            <input type="text" name="lastname" value="<?= htmlspecialchars($edit_data['lastname'] ?? '') ?>" required class="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-brand-500 transition-all text-sm font-medium"></div>
+                        </div>
+                        <div><label class="block text-xs font-bold text-gray-700 uppercase mb-1.5">Email</label>
+                        <input type="email" name="email" value="<?= htmlspecialchars($edit_data['email'] ?? '') ?>" required class="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-brand-500 transition-all text-sm font-medium"></div>
+                        <div><label class="block text-xs font-bold text-gray-700 uppercase mb-1.5">Teléfono (WhatsApp)</label>
+                        <input type="tel" name="phone" value="<?= htmlspecialchars($edit_data['phone'] ?? '') ?>" required class="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-brand-500 transition-all text-sm font-bold text-green-600">
+                        </div>
+                        
+                        <div><label class="block text-xs font-bold text-gray-700 uppercase mb-1.5">Dirección de Entrega</label>
+                        <div class="relative cursor-pointer" onclick="openMapModal()">
+                            <input type="text" id="address" name="address" value="<?= htmlspecialchars($edit_data['address'] ?? '') ?>" required readonly class="w-full pl-4 pr-12 py-3 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-brand-500 transition-all text-sm font-medium cursor-pointer" placeholder="Toca para buscar en el mapa...">
+                            <input type="hidden" id="lat" name="lat" value="<?= $edit_data['lat'] ?? '' ?>">
+                            <input type="hidden" id="lng" name="lng" value="<?= $edit_data['lng'] ?? '' ?>">
+                            <span class="absolute inset-y-0 right-0 flex items-center pr-3 text-brand-600"><i class="fas fa-search-location"></i></span>
+                        </div></div>
+                        
+                        <div><label class="block text-xs font-bold text-gray-700 uppercase mb-1.5">Indicaciones (Opcional)</label>
+                        <textarea name="comments" rows="2" class="w-full p-4 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-brand-500 transition-all text-sm font-medium resize-none"><?= htmlspecialchars($edit_data['comments'] ?? '') ?></textarea></div>
+                        <button type="submit" class="w-full py-4 bg-green-600 text-white rounded-2xl font-black text-xl shadow-xl hover:bg-green-700 transition-all active:scale-95 uppercase tracking-wide">CONFIRMAR PEDIDO <i class="fas fa-paper-plane ml-2"></i></button>
+                    </form>
+                </div>
+            <?php endif; ?>
+        </div>
+    </main>
+
+    <!-- MAP MODAL -->
+    <div id="mapModal" class="fixed inset-0 z-[100] hidden items-end sm:items-center justify-center bg-gray-900/80 backdrop-blur-sm transition-opacity">
+        <div class="bg-white w-full sm:w-[600px] h-[90vh] sm:h-[600px] sm:rounded-2xl rounded-t-3xl shadow-2xl flex flex-col overflow-hidden animate-slide-up">
+            <div class="p-4 bg-white border-b border-gray-100 flex justify-between items-center z-10">
+                <h3 class="font-bold text-gray-800 text-lg">📍 Ubicación de Entrega</h3>
+                <button type="button" onclick="closeMapModal()" class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-4 bg-white z-10 relative">
+                <div class="relative shadow-md rounded-xl"><i class="fas fa-search absolute left-4 top-3.5 text-gray-400"></i><input type="text" id="map-search-input" class="w-full pl-10 pr-4 py-3 rounded-xl border-none bg-gray-50 focus:ring-2 focus:ring-brand-500 text-sm font-medium shadow-inner" placeholder="Escribe tu dirección..."></div>
+            </div>
+            <div class="flex-grow relative"><div id="google-map" class="w-full h-full bg-gray-200 shadow-inner"></div></div>
+            <div class="p-5 bg-white border-t border-gray-100 z-10 text-center">
+                <div class="mb-3"><label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Punto detectado:</label><p id="selected-address-text" class="text-sm font-bold text-gray-800 truncate px-4 italic">...</p></div>
+                <button type="button" onclick="confirmLocation()" class="w-full py-3.5 bg-brand-600 text-white rounded-xl font-bold text-lg shadow-lg hover:bg-brand-700 transition-all uppercase tracking-widest">Confirmar Ubicación</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script src="../assets/js/plantilla-renderer.js"></script>
+    <script>
+        AOS.init({ duration: 800, once: true });
+
+        // PASO 1
+        function seleccionarModelo(id, price) {
+            document.getElementById('model_id').value = id;
+            document.getElementById('model_price').value = price;
+            document.getElementById('form-modelos').submit();
+        }
+
+        // PASO 2
+        function seleccionarPlantilla(element, id) {
+            document.querySelectorAll('.plantilla-item').forEach(el => {
+                el.classList.remove('ring-4', 'ring-brand-500', 'shadow-xl');
+                const ov = el.querySelector('.btn-overlay'); if(ov) ov.classList.add('hidden');
+            });
+            element.classList.add('ring-4', 'ring-brand-500', 'shadow-xl');
+            const selectedOverlay = element.querySelector('.btn-overlay');
+            if(selectedOverlay) selectedOverlay.classList.remove('hidden');
+            document.getElementById('template_id').value = id;
+            const data = JSON.parse(element.getAttribute('data-template-data'));
+            for(let i=1; i<=4; i++) {
+                const input = document.getElementById('linea' + i + '_input');
+                const chk = document.getElementById('chk_linea' + i);
+                if(input && (!input.value || input.value.trim() === "")) { input.value = data['linea' + i].texto || ""; }
+                if(chk && input) { chk.checked = (input.value.trim() !== ""); }
             }
-            // No hay global_line_spacing si no hay un control global para ello.
-            // Se asume que el margen superior de cada línea es suficiente.
-
-            // No hay elementos para actualizar valores globales si no existen.
-            // Se eliminan las referencias a fontSizeValueSpan y lineSpacingValueSpan.
-
-            window.renderizarPlantilla(previewContainer, datosParaRender);
-        };
-
-        // Add event listeners to global controls
-        if (fontSizeSlider) {
-            fontSizeSlider.addEventListener('input', window.actualizarVistaPreviaEditor);
-        }
-        if (lineSpacingSlider) {
-            lineSpacingSlider.addEventListener('input', window.actualizarVistaPreviaEditor);
-        }
-        if (boldCheckbox) {
-            boldCheckbox.addEventListener('change', window.actualizarVistaPreviaEditor);
+            updatePreviewsRealtime();
         }
 
-        // Initial render
-        setTimeout(window.actualizarVistaPreviaEditor, 50);
-    }
-});
-
-</script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const currentStep = "<?= htmlspecialchars($step ?? '') ?>";
-
-    if (currentStep === '4') {
-        const addressInput = document.getElementById('address');
-        if (addressInput) {
-            const autocomplete = new google.maps.places.Autocomplete(addressInput, {
-                types: ['address'],
-                componentRestrictions: {'country': ['ar']}, // Restringir a Argentina
-            });
-
-            autocomplete.addListener('place_changed', function() {
-                const place = autocomplete.getPlace();
-                if (!place.geometry) {
-                    // El usuario ingresó el nombre de un lugar que no contiene geometría
-                    console.log("No details available for input: '" + place.name + "'");
-                    return;
+        function updatePreviewsRealtime() {
+            document.querySelectorAll('.plantilla-item').forEach(item => {
+                const id = item.dataset.templateId;
+                const data = JSON.parse(item.dataset.templateData);
+                const wrapper = document.getElementById('template-preview-' + id);
+                const container = wrapper ? wrapper.querySelector('.plantilla-preview-container') : null;
+                if(!container) return;
+                for(let i=1; i<=4; i++) {
+                    const input = document.getElementById('linea' + i + '_input');
+                    const chk = document.getElementById('chk_linea' + i);
+                    if(chk && !chk.checked) { data['linea' + i].texto = ''; } 
+                    else if(input) { data['linea' + i].texto = input.value; }
                 }
-                // Si la dirección es válida, el campo se llenará automáticamente.
-                // Podrías añadir más lógica aquí si necesitas extraer componentes específicos de la dirección
+                window.renderizarPlantilla(container, data, 'black');
             });
         }
-    }
-});
-</script>
+
+        if("<?= $step ?>" === '2') {
+            document.querySelectorAll('input[id$="_input"]').forEach(i => i.addEventListener('input', updatePreviewsRealtime));
+            document.querySelectorAll('input[id^="chk_linea"]').forEach(i => i.addEventListener('change', updatePreviewsRealtime));
+            updatePreviewsRealtime();
+        }
+
+        // PASO 3
+        if("<?= $step ?>" === '3') {
+            const form = document.getElementById('editorForm');
+            const previewContainer = document.getElementById('editor-preview-container');
+            document.querySelectorAll('select[name^="fuente"]').forEach(select => {
+                select.classList.add('w-full', 'px-4', 'py-2.5', 'rounded-xl', 'border', 'border-gray-300', 'bg-gray-50', 'text-gray-900', 'focus:bg-white', 'focus:ring-2', 'focus:ring-brand-500', 'transition-all', 'appearance-none', 'text-sm');
+            });
+            window.actualizarVistaPreviaEditor = function() {
+                const data = JSON.parse(JSON.stringify(window.initialTemplateData));
+                if (!previewContainer.innerHTML.trim()) previewContainer.innerHTML = '<div class="plantilla-preview-container"><div class="plantilla-linea plantilla-linea-1"></div><div class="plantilla-linea plantilla-linea-2"></div><div class="plantilla-linea plantilla-linea-3"></div><div class="plantilla-linea plantilla-linea-4"></div></div>';
+                for(let i=1; i<=4; i++) {
+                    if(!data['linea'+i]) continue;
+                    const inputs = { texto: form.querySelector(`[name="linea${i}_texto_editor"]`), fuente: form.querySelector(`[name="fuente${i}"]`), tamano: form.querySelector(`[name="tamano${i}"]`), negrita: form.querySelector(`[name="negrita${i}"]`), alineacion: form.querySelector(`[name="alineacion${i}"]`), margen: form.querySelector(`[name="margen_top${i}"]`), mayuscula: form.querySelector(`[name="mayuscula${i}"]`) };
+                    if(inputs.texto) data['linea'+i].texto = inputs.texto.value;
+                    if(inputs.fuente) data['linea'+i].fuente = inputs.fuente.value;
+                    if(inputs.tamano) data['linea'+i].tamano = parseInt(inputs.tamano.value);
+                    if(inputs.negrita) data['linea'+i].negrita = inputs.negrita.checked;
+                    if(inputs.alineacion) data['linea'+i].alineacion = inputs.alineacion.value;
+                    if(inputs.margen) data['linea'+i].margen = parseInt(inputs.margen.value);
+                    if(inputs.mayuscula) data['linea'+i].mayuscula = inputs.mayuscula.checked;
+                }
+                window.renderizarPlantilla(previewContainer, data, 'black');
+            };
+            window.showTab = function(n) {
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+                document.getElementById('tab-content-'+n).classList.remove('hidden');
+                document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('bg-brand-500', 'text-white', 'shadow-md'); b.classList.add('bg-gray-100', 'text-gray-500'); });
+                const btn = document.getElementById('tab-btn-'+n); btn.classList.remove('bg-gray-100', 'text-gray-500'); btn.classList.add('bg-brand-500', 'text-white', 'shadow-md');
+            };
+            window.changeFontSize = function(line, delta) { const el = document.getElementById('tamano'+line); el.value = Math.max(8, parseInt(el.value) + delta); window.actualizarVistaPreviaEditor(); };
+            window.setAlign = function(line, val, btn) { document.getElementById('alineacion'+line).value = val; btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('text-brand-600')); btn.classList.add('text-brand-600'); window.actualizarVistaPreviaEditor(); };
+            form.addEventListener('input', window.actualizarVistaPreviaEditor);
+            form.addEventListener('change', window.actualizarVistaPreviaEditor);
+            const firstTab = document.querySelector('button[id^="tab-btn-"]'); if(firstTab) firstTab.click();
+            for(let i=1; i<=4; i++) { const val = document.getElementById('alineacion'+i)?.value; if(val) { const btn = document.querySelector(`#tab-content-${i} button[data-val="${val}"]`); if(btn) btn.classList.add('text-brand-600'); } }
+            window.actualizarVistaPreviaEditor();
+        }
+
+        // MAP LOGIC
+        let map, marker, geocoder;
+        let defaultLocation = { lat: -34.603722, lng: -58.381592 }; 
+        function initMapModal() {
+            const savedLat = document.getElementById('lat').value; const savedLng = document.getElementById('lng').value;
+            if(savedLat && savedLng) defaultLocation = { lat: parseFloat(savedLat), lng: parseFloat(savedLng) };
+            if(map) return; 
+            map = new google.maps.Map(document.getElementById("google-map"), { center: defaultLocation, zoom: 17, disableDefaultUI: true, zoomControl: true });
+            geocoder = new google.maps.Geocoder();
+            marker = new google.maps.Marker({ map: map, position: defaultLocation, draggable: true, animation: google.maps.Animation.DROP, icon: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png' });
+            const searchInput = document.getElementById("map-search-input");
+            const autocomplete = new google.maps.places.Autocomplete(searchInput, { componentRestrictions: {'country': ['ar']} });
+            autocomplete.bindTo("bounds", map);
+            autocomplete.addListener("place_changed", () => {
+                const place = autocomplete.getPlace(); if (!place.geometry || !place.geometry.location) return;
+                if (place.geometry.viewport) map.fitBounds(place.geometry.viewport); else { map.setCenter(place.geometry.location); map.setZoom(17); }
+                marker.setPosition(place.geometry.location); updateCoordinates(place.geometry.location); document.getElementById("selected-address-text").textContent = place.formatted_address;
+            });
+            marker.addListener("dragend", () => { const pos = marker.getPosition(); updateCoordinates(pos); geocodePosition(pos); });
+            map.addListener("click", (e) => { marker.setPosition(e.latLng); updateCoordinates(e.latLng); geocodePosition(e.latLng); });
+        }
+        function updateCoordinates(latLng) { document.getElementById("lat").value = latLng.lat(); document.getElementById("lng").value = latLng.lng(); }
+        function geocodePosition(pos) {
+            if (!geocoder) geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ location: pos }, (results, status) => {
+                if (status === "OK" && results[0]) document.getElementById("selected-address-text").textContent = results[0].formatted_address;
+                else document.getElementById("selected-address-text").textContent = "Punto marcado manualmente";
+            });
+        }
+        function openMapModal() {
+            document.getElementById('mapModal').classList.remove('hidden'); document.getElementById('mapModal').classList.add('flex');
+            if(!map) { if(typeof google !== 'undefined') initMapModal(); else alert("Cargando Google Maps..."); }
+            setTimeout(() => { google.maps.event.trigger(map, "resize"); map.setCenter(marker.getPosition()); }, 100);
+        }
+        function closeMapModal() { document.getElementById('mapModal').classList.add('hidden'); document.getElementById('mapModal').classList.remove('flex'); }
+        function confirmLocation() {
+            const searchVal = document.getElementById("map-search-input").value;
+            const geocodeVal = document.getElementById("selected-address-text").textContent;
+            let addressToSave = searchVal;
+            if (!addressToSave || addressToSave.trim() === "") addressToSave = geocodeVal;
+            if (addressToSave.includes("Punto marcado") || addressToSave.includes("...")) addressToSave = document.getElementById("address").value;
+            if(addressToSave && addressToSave.trim() !== "") { document.getElementById("address").value = addressToSave; closeMapModal(); }
+            else alert("Selecciona una dirección.");
+        }
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAXXtVhQP_A1Ix8lgPtkpwqR6XVzAQLQzs&libraries=places&callback=initMapModal" async defer></script>
 </body>
 </html>

@@ -1,6 +1,8 @@
 <?php
 session_start();
 require_once 'includes/db.php';
+require_once __DIR__ . '/includes/config.php';
+require_once __DIR__ . '/includes/settings.php';
 
 $error = '';
 
@@ -25,165 +27,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $error = "Credenciales inválidas";
     }
 }
-?>
 
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Login - SoloSellos</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <style>
-        body {
-            font-family: 'Poppins', sans-serif;
-            background-color: #f0f2f5;
-            margin: 0;
-            padding: 0;
-        }
-
-        .login-container {
-            width: 100%;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .login-card {
-            background-color: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-            width: 100%;
-            max-width: 320px;
-            text-align: center;
-            animation: fadeIn 0.6s ease;
-        }
-
-        .login-card img {
-            width: 100px;
-            margin-bottom: 20px;
-        }
-
-        .login-card h2 {
-            margin-bottom: 10px;
-            font-size: 22px;
-            color: #333;
-        }
-
-        .login-card input {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-            font-size: 14px;
-            transition: border 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .login-card input:focus {
-            border-color: #1abc9c;
-            box-shadow: 0 0 5px rgba(26, 188, 156, 0.4);
-            outline: none;
-        }
-
-        .login-card button {
-            width: 100%;
-            padding: 10px;
-            background-color: #1abc9c;
-            border: none;
-            color: white;
-            font-size: 16px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background 0.3s ease;
-        }
-
-        .login-card button:hover {
-            background-color: #16a085;
-        }
-
-        .error-msg {
-            background: #ffe0e0;
-            color: #c0392b;
-            border: 1px solid #e74c3c;
-            padding: 8px;
-            margin: 10px 0;
-            border-radius: 5px;
-            animation: slideDown 0.3s ease;
-        }
-
-        footer {
-            text-align: center;
-            margin-top: 20px;
-            color: #aaa;
-            font-size: 12px;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.9); }
-            to { opacity: 1; transform: scale(1); }
-        }
-
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .login-logo {
-            display: block;
-            max-width: 300px;
-            width: 100%;
-            height: auto;
-            margin: 40px auto 30px auto;
-        }
-        .login-field {
-            max-width: 300px;
-            width: 100%;
-            margin: 8px auto;
-            display: block;
-            text-align: left;
-            align: center;
-        }
-        .login-button {
-            max-width: 300px;
-            width: 100%;
-            margin: 8px auto;
-            display: block;
-            text-align: center;
-            align: center;
-}
-</style>
-
-</head>
-<body>
-
-<div class="login-container">
-    <div class="login-card" style="text-align: center;">
-        <img src="../assets/images/logo-login.png" style="max-width:200px; width:100%; height:auto; display:block; margin:30px auto;" />
-        <br>
-        <hr>
-        <br>
-        <h2>Acceso al panel</h2>
-
-        <?php if ($error): ?>
-            <div class="error-msg"><?= $error ?></div>
-        <?php endif; ?>
-
-        
-<?php
-require_once __DIR__ . '/includes/config.php';
-require_once __DIR__ . '/includes/settings.php';
-
+// Lógica de suscripción de MercadoPago
 if (isset($_GET['preapproval_id'])) {
     $preapproval_id = $_GET['preapproval_id'];
-
-    // Consultar la API de MercadoPago
     $token = get_setting('mp_access_token');
     $ch = curl_init("https://api.mercadopago.com/preapproval/" . $preapproval_id);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "Authorization: Bearer $token"
-    ]);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer $token"]);
     $response = curl_exec($ch);
     $data = json_decode($response, true);
     curl_close($ch);
@@ -191,31 +42,135 @@ if (isset($_GET['preapproval_id'])) {
     if (isset($data['status']) && $data['status'] === 'authorized') {
         $referencia = $data['external_reference'];
         $user_id = str_replace("usuario_", "", $referencia);
-        $conn->query("UPDATE users SET active = 1, plan = 'mensual' WHERE id = $user_id");
+        $pdo->query("UPDATE users SET active = 1, plan = 'mensual' WHERE id = " . intval($user_id));
     }
 }
 ?>
 
-<?php if (isset($_GET['sub']) && $_GET['sub'] === 'ok'): ?>
-  <div style="background: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #c3e6cb;">
-    ✅ ¡Tu suscripción fue confirmada correctamente! Ahora podés iniciar sesión.
-  </div>
-<?php elseif (isset($_GET['preapproval_id'])): ?>
-  <div style="background: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #c3e6cb;">
-    ✅ ¡Gracias por suscribirte! Tu cuenta ha sido activada automáticamente.
-  </div>
-<?php endif; ?>
-<form method="POST" style="display: flex; flex-direction: column; align-items: center;">
-            <input type="email" name="email" placeholder="Correo" required class="login-field">
-            <input type="password" name="password" placeholder="Contraseña" required class="login-field">
-            <button type="submit" class="login-button">Ingresar</button>
-        </form>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso - SoloSellos</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4">
 
-        <footer style="margin-top: 20px;">
-            © <?= date('Y') ?> SoloSellos
-        </footer>
+    <div class="max-w-md w-full">
+        <!-- Tarjeta de Login -->
+        <div class="bg-white rounded-2xl shadow-xl shadow-gray-200/50 overflow-hidden border border-gray-100 transition-all">
+            
+            <div class="p-8">
+                <!-- Logo -->
+                <div class="flex justify-center mb-8">
+                    <img src="../assets/images/logo-login.png" alt="SoloSellos Logo" class="h-20 w-auto object-contain">
+                </div>
+
+                <div class="text-center mb-8">
+                    <h2 class="text-2xl font-bold text-gray-800">Panel de Control</h2>
+                    <p class="text-gray-500 mt-2 text-sm">Ingresá tus credenciales para continuar</p>
+                </div>
+
+                <!-- Alertas de MercadoPago -->
+                <?php if (isset($_GET['sub']) && $_GET['sub'] === 'ok'): ?>
+                    <div class="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-xl text-sm flex items-start gap-3">
+                        <i class="fas fa-check-circle mt-0.5"></i>
+                        <p>¡Tu suscripción fue confirmada! Ya podés iniciar sesión.</p>
+                    </div>
+                <?php elseif (isset($_GET['preapproval_id'])): ?>
+                    <div class="mb-6 p-4 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl text-sm flex items-start gap-3">
+                        <i class="fas fa-info-circle mt-0.5"></i>
+                        <p>¡Gracias por suscribirte! Tu cuenta ha sido activada automáticamente.</p>
+                    </div>
+                <?php endif; ?>
+
+                <!-- Error de Login -->
+                <?php if ($error): ?>
+                    <div class="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm flex items-start gap-3 animate-pulse">
+                        <i class="fas fa-exclamation-triangle mt-0.5"></i>
+                        <p><?= htmlspecialchars($error) ?></p>
+                    </div>
+                <?php endif; ?>
+
+                <!-- Formulario -->
+                <form method="POST" class="space-y-5">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5 ml-1">Correo Electrónico</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                                <i class="far fa-envelope"></i>
+                            </span>
+                            <input type="email" name="email" required 
+                                class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 focus:bg-white transition-all"
+                                placeholder="ejemplo@correo.com">
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5 ml-1">
+                            <label class="text-sm font-semibold text-gray-700">Contraseña</label>
+                            <!-- <a href="#" class="text-xs text-brand-600 hover:text-brand-700 font-medium">¿Olvidaste tu contraseña?</a> -->
+                        </div>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                                <i class="fas fa-lock text-sm"></i>
+                            </span>
+                            <input type="password" name="password" required 
+                                class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 focus:bg-white transition-all"
+                                placeholder="••••••••">
+                        </div>
+                    </div>
+
+                    <button type="submit" 
+                        class="w-full py-3.5 px-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl shadow-lg shadow-brand-200 transition-all active:scale-[0.98] mt-2">
+                        Iniciar Sesión
+                    </button>
+                </form>
+            </div>
+
+            <!-- Footer Tarjeta -->
+            <div class="bg-gray-50 p-4 border-t border-gray-100 text-center">
+                <p class="text-xs text-gray-400">© <?= date('Y') ?> SoloSellos · Sistema de Gestión</p>
+            </div>
+        </div>
+
+        <!-- Links adicionales (Opcional) -->
+        <div class="mt-8 text-center space-y-4">
+            <a href="../index.php" class="text-sm text-gray-500 hover:text-gray-800 transition-colors">
+                <i class="fas fa-arrow-left mr-1.5 text-xs"></i> Volver a la web principal
+            </a>
+        </div>
     </div>
-</div>
 
 </body>
 </html>

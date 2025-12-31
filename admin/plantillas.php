@@ -1,13 +1,8 @@
 <?php
 require_once 'includes/auth.php';
 require_once 'includes/db.php';
-require_once 'includes/header.php';
 
-// Cargar CSS específico de la página
-echo '<link rel="stylesheet" href="../assets/css/plantilla-preview.css">';
-echo '<link rel="stylesheet" href="../assets/css/plantillas-page.css">';
-
-// Lógica para gestionar categorías (sin cambios)
+// Lógica para gestionar categorías (sin cambios en la lógica PHP)
 if (isset($_GET['del_cat'])) {
     $cat_id = intval($_GET['del_cat']);
     $stmt = $pdo->prepare("DELETE FROM template_categories WHERE id = ? AND user_id = ?");
@@ -43,7 +38,13 @@ $stmt_cats = $pdo->prepare("SELECT * FROM template_categories WHERE user_id = ?"
 $stmt_cats->execute([$_SESSION['user']['id']]);
 $categorias = $stmt_cats->fetchAll();
 
-// Cargar dinámicamente las fuentes de Google Fonts necesarias
+require_once 'includes/header.php';
+?>
+
+<!-- Estilos específicos para Previsualización (Legacy Support) -->
+<link rel="stylesheet" href="../assets/css/plantilla-preview.css">
+<?php
+// Cargar dinámicamente las fuentes de Google Fonts
 $fuentes_usadas = [];
 foreach ($plantillas as $p) {
     for ($i = 1; $i <= 4; $i++) {
@@ -53,139 +54,48 @@ foreach ($plantillas as $p) {
         }
     }
 }
-foreach ($fuentes_usadas as $fuente) {
-    $nombre_fuente = str_replace(' ', '+', $fuente);
-    echo "<link href='https://fonts.googleapis.com/css2?family={$nombre_fuente}:wght@400;700&display=swap' rel='stylesheet'>\n";
-}
-?>
-
-<link rel="stylesheet" href="../assets/css/plantilla-preview.css">
-<link rel="stylesheet" href="../assets/css/plantillas-page.css"> <!-- CSS específico para esta página -->
+foreach ($fuentes_usadas as $fuente): ?>
+    <link href='https://fonts.googleapis.com/css2?family=<?= str_replace(' ', '+', $fuente) ?>:wght@400;700&display=swap' rel='stylesheet'>
+<?php endforeach; ?>
 
 <style>
-    /* Estilos para el modal custom */
-    .custom-modal {
-        display: none; /* Oculto por defecto */
-        position: fixed; /* Posición fija en la pantalla */
-        z-index: 1000; /* Por encima de todo */
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        overflow: auto; /* Habilitar scroll si el contenido es muy largo */
-        background-color: rgba(0,0,0,0.4); /* Fondo semi-transparente */
-        justify-content: center;
-        align-items: center;
-    }
-    .custom-modal-content {
-        background-color: #fefefe;
-        margin: auto;
-        padding: 20px;
-        border: 1px solid #888;
-        width: 80%;
-        max-width: 500px;
-        border-radius: 8px;
-        position: relative;
-        box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
-        animation-name: animatetop;
-        animation-duration: 0.4s
-    }
-    /* Animación del modal */
-    @-webkit-keyframes animatetop {
-        from {top: -300px; opacity: 0}
-        to {top: 0; opacity: 1}
-    }
-    @keyframes animatetop {
-        from {top: -300px; opacity: 0}
-        to {top: 0; opacity: 1}
-    }
-    .custom-close-button {
-        color: #aaa;
-        float: right;
-        font-size: 28px;
-        font-weight: bold;
+    /* Estilos replicados de index.php para garantizar visualización idéntica */
+    .plantilla-preview-container-scaled {
         position: absolute;
-        right: 10px;
-        top: 5px;
-    }
-    .custom-close-button:hover,
-    .custom-close-button:focus {
-        color: black;
-        text-decoration: none;
-        cursor: pointer;
-    }
-    .custom-modal-header {
-        padding: 10px 0;
-        border-bottom: 1px solid #eee;
-        margin-bottom: 15px;
-    }
-    .custom-modal-header h5 {
-        margin: 0;
-        font-size: 20px;
-    }
-        .custom-modal-body .input-group {
-        /* display: flex; */ /* Eliminamos flex para que los elementos se apilen */
-        margin-bottom: 15px;
-    }
-    .custom-modal-body .input-group input {
-        /* flex: 1; */ /* Ya no es necesario con display: block */
-        width: 100%; /* Aseguramos que ocupe todo el ancho */
-        padding: 8px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        margin-right: 0; /* Eliminamos el margen derecho */
-        margin-bottom: 10px; /* Añadimos margen inferior para separar del botón */
-    }
-    .custom-modal-body .input-group button {
-        width: 100%; /* Botón ocupa todo el ancho */
-        padding: 8px 15px;
-        background-color: #1abc9c;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        display: block; /* Aseguramos que el botón sea un bloque */
-    }
-    .custom-modal-body .list-group {
-        list-style: none;
-        padding: 0;
-    }
-    .custom-modal-body .list-group-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 0;
-        border-bottom: 1px solid #eee;
-    }
-    .custom-modal-body .list-group-item:last-child {
-        border-bottom: none;
-    }
-    .custom-modal-body .list-group-item .btn-danger {
-        background-color: #e74c3c;
-        color: white;
-        border: none;
-        padding: 5px 10px;
-        border-radius: 4px;
-        cursor: pointer;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0.65);
+        width: 380px; /* Ancho original del contenido */
+        height: 140px; /* Alto original del contenido */
+        pointer-events: none; /* Evitar interacción con el preview escalado */
     }
 </style>
 
-<h2>Mis plantillas</h2>
-
-<!-- Contenedor para los botones de filtro y el botón del modal -->
-<div class="tabs-container">
-    <div class="tabs">
-        <button onclick="switchTab('all')" class="tab-btn active" data-cat-id="all">Todas</button>
+<!-- Header de Página & Filtros -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+    <div class="flex flex-wrap gap-2 p-1 bg-gray-200 rounded-xl overflow-x-auto max-w-full">
+        <button onclick="switchTab('all')" data-cat-id="all" class="tab-btn px-4 py-2 rounded-lg text-sm font-semibold transition-all bg-white text-brand-600 shadow-sm">
+            Todas
+        </button>
         <?php foreach ($categorias as $cat): ?>
-            <button onclick="switchTab(<?= $cat['id'] ?>)" data-cat-id="<?= $cat['id'] ?>" class="tab-btn">
+            <button onclick="switchTab(<?= $cat['id'] ?>)" data-cat-id="<?= $cat['id'] ?>" class="tab-btn px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-700 transition-all">
                 <?= htmlspecialchars($cat['name']) ?>
             </button>
         <?php endforeach; ?>
-        </div>
+    </div>
+
+    <div class="flex gap-2 w-full md:w-auto">
+        <button onclick="abrirCategoriasModal()" class="flex-1 md:flex-none px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium shadow-sm flex items-center justify-center gap-2">
+            <i class="fas fa-tags text-brand-500"></i> Categorías
+        </button>
+        <a href="nueva_plantilla.php" class="flex-1 md:flex-none px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors text-sm font-bold shadow-sm shadow-brand-100 flex items-center justify-center gap-2">
+            <i class="fas fa-plus"></i> Nueva
+        </a>
+    </div>
 </div>
 
-<!-- Grid para mostrar las plantillas -->
-<div class="grid-plantillas">
+<!-- Grid de Plantillas -->
+<div id="grid-plantillas" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
     <?php foreach ($plantillas as $plantilla): ?>
         <?php
             $content_decoded = json_decode($plantilla['content'], true);
@@ -196,48 +106,125 @@ foreach ($fuentes_usadas as $fuente) {
                 'linea4' => ['texto' => $content_decoded['linea4'] ?? '', 'fuente' => $plantilla['fuente_linea_4'], 'tamano' => $plantilla['tamano_linea_4'], 'negrita' => !empty($plantilla['bold_linea_4']), 'alineacion' => $plantilla['alineacion_linea_4'], 'margen' => (int)($plantilla['margen_top_linea_4'] ?? 0)]
             ];
         ?>
-        <div class="plantilla-card" 
+        <div class="plantilla-card bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col overflow-hidden group" 
              data-cat-id="<?= $plantilla['category_id'] ?>" 
              data-template-id="<?= $plantilla['id'] ?>"
              data-template-data='<?= htmlspecialchars(json_encode($plantilla_data), ENT_QUOTES, 'UTF-8') ?>'>
             
-            <div class="plantilla-preview-scale-wrapper" style="transform: scale(0.6); transform-origin: center center;">
-                <div class="plantilla-preview-wrapper" id="preview-container-<?= $plantilla['id'] ?>">
-                    <?php include 'includes/_plantilla_preview.php'; ?>
+            <!-- Preview Container Replicado de Index.php -->
+            <div class="relative w-full h-[160px] bg-gray-50 border-b border-gray-100 overflow-hidden">
+                <div class="plantilla-preview-container-scaled">
+                    <div class="plantilla-preview-wrapper" id="preview-container-<?= $plantilla['id'] ?>">
+                        <?php include 'includes/_plantilla_preview.php'; ?>
+                    </div>
                 </div>
             </div>
 
-            <div class="titulo"><h4><?= htmlspecialchars($plantilla['nombre']) ?></h4></div>
-            
-            <div class="acciones">
-                <a href="editar_plantilla.php?id=<?= $plantilla['id'] ?>"><span class="icon">✏️</span> <span class="text">Editar</span></a>
-                <a href="duplicar_plantilla.php?id=<?= $plantilla['id'] ?>"><span class="icon">📄</span> <span class="text">Duplicar</span></a>
-                <a href="eliminar_plantilla.php?id=<?= $plantilla['id'] ?>" onclick="return confirm('¿Seguro?')"><span class="icon">🗑️</span> <span class="text">Eliminar</span></a>
+            <!-- Info -->
+            <div class="p-4 flex-1 flex flex-col justify-between">
+                <h4 class="text-sm font-bold text-gray-800 text-center mb-4 line-clamp-1 group-hover:text-brand-600 transition-colors">
+                    <?= htmlspecialchars($plantilla['nombre']) ?>
+                </h4>
+                
+                <div class="flex items-center justify-center gap-1">
+                    <a href="editar_plantilla.php?id=<?= $plantilla['id'] ?>" class="flex-1 flex flex-col items-center p-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors" title="Editar">
+                        <i class="fas fa-pen mb-1.5 text-base"></i>
+                        <span>Editar</span>
+                    </a>
+                    <a href="duplicar_plantilla.php?id=<?= $plantilla['id'] ?>" class="flex-1 flex flex-col items-center p-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-brand-50 hover:text-brand-600 transition-colors" title="Duplicar">
+                        <i class="fas fa-copy mb-1.5 text-base"></i>
+                        <span>Duplicar</span>
+                    </a>
+                    <a href="eliminar_plantilla.php?id=<?= $plantilla['id'] ?>" onclick="return confirm('¿Eliminar esta plantilla?')" class="flex-1 flex flex-col items-center p-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors" title="Eliminar">
+                        <i class="fas fa-trash-alt mb-1.5 text-base"></i>
+                        <span>Eliminar</span>
+                    </a>
+                </div>
             </div>
         </div>
     <?php endforeach; ?>
 </div>
 
-<div class="fab-container">
-    <a href="#" id="openCategoriasModalBtn" class="boton-flotante"><span class="icon">⚙️</span><span class="text">Categorías</span></a>
-    <a href="nueva_plantilla.php" class="boton-flotante"><span class="icon">+</span><span class="text">Agregar Plantilla</span></a>
+<!-- Modal Administrar Categorías -->
+<div id="categoriasModal" class="fixed inset-0 z-[60] hidden flex items-center justify-center bg-gray-900/50 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-bounce-in">
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <h5 class="text-lg font-bold text-gray-800">Administrar Categorías</h5>
+            <button onclick="cerrarCategoriasModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div class="p-6">
+            <!-- Formulario para agregar nueva categoría -->
+            <form action="plantillas.php" method="post" class="mb-6">
+                <div class="flex gap-2">
+                    <input type="text" name="nueva_categoria" placeholder="Nueva categoría..." required
+                        class="flex-1 border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-brand-500 focus:border-brand-500 bg-gray-50 outline-none">
+                    <button type="submit" name="agregar_cat" class="bg-brand-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-brand-700 transition-colors">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </form>
+
+            <div class="max-h-60 overflow-y-auto custom-scroll pr-1">
+                <ul class="space-y-2">
+                    <?php foreach ($categorias as $cat): ?>
+                        <li class="flex justify-between items-center p-3 bg-gray-50 rounded-xl border border-gray-100">
+                            <span class="text-sm font-semibold text-gray-700"><?= htmlspecialchars($cat['name']) ?></span>
+                            <a href="plantillas.php?del_cat=<?= $cat['id'] ?>" onclick="return confirm('¿Seguro?')" class="text-red-400 hover:text-red-600 p-1.5 transition-colors">
+                                <i class="fas fa-trash-alt"></i>
+                            </a>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 text-right">
+            <button onclick="cerrarCategoriasModal()" class="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-800 transition-colors">Cerrar</button>
+        </div>
+    </div>
 </div>
 
 <script src="../assets/js/plantilla-renderer.js"></script>
 <script>
-// Script para la funcionalidad de los tabs
+// Manejo de Filtros por Categoría
 function switchTab(categoriaId) {
     document.querySelectorAll('.plantilla-card').forEach(card => {
-        card.style.display = (categoriaId === 'all' || card.dataset.catId == categoriaId) ? 'flex' : 'none';
+        const match = (categoriaId === 'all' || card.dataset.catId == categoriaId);
+        if (match) {
+            card.classList.remove('hidden');
+            card.classList.add('flex');
+        } else {
+            card.classList.add('hidden');
+            card.classList.remove('flex');
+        }
     });
+    
     document.querySelectorAll('.tab-btn').forEach(btn => {
         const isActive = btn.dataset.catId === String(categoriaId);
-        btn.classList.toggle('active', isActive);
+        if (isActive) {
+            btn.classList.add('bg-white', 'text-brand-600', 'shadow-sm');
+            btn.classList.remove('text-gray-500', 'hover:text-gray-700');
+        } else {
+            btn.classList.remove('bg-white', 'text-brand-600', 'shadow-sm');
+            btn.classList.add('text-gray-500', 'hover:text-gray-700');
+        }
     });
 }
 
+// Manejo del Modal
+function abrirCategoriasModal() {
+    const modal = document.getElementById('categoriasModal');
+    modal.classList.remove('hidden');
+}
+
+function cerrarCategoriasModal() {
+    const modal = document.getElementById('categoriasModal');
+    modal.classList.add('hidden');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    // Renderizar todas las vistas previas de las plantillas al cargar la página
+    // Renderizar Previsualizaciones
     document.querySelectorAll('.plantilla-card[data-template-data]').forEach(card => {
         const templateDataAttr = card.getAttribute('data-template-data');
         const templateId = card.getAttribute('data-template-id');
@@ -246,7 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const templateData = JSON.parse(templateDataAttr);
                 const previewContainer = document.getElementById('preview-container-' + templateId);
                 if (previewContainer) {
-                    window.renderizarPlantilla(previewContainer, templateData);
+                    window.renderizarPlantilla(previewContainer, templateData, 'black');
                 }
             } catch (e) {
                 console.error('Error al renderizar la plantilla:', templateId, e);
@@ -254,64 +241,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Activar el primer tab por defecto
+    // Activar primer tab
     switchTab('all');
+
+    // Cerrar modal al clickear fuera
+    const modal = document.getElementById('categoriasModal');
+    modal.addEventListener('click', (e) => {
+        if(e.target === modal) cerrarCategoriasModal();
+    });
 });
 </script>
 
 <?php require_once 'includes/footer.php'; ?>
-
-<!-- Modal Custom para Administrar Categorías -->
-<div id="categoriasModal" class="custom-modal">
-    <div class="custom-modal-content">
-        <div class="custom-modal-header">
-            <h5 class="custom-modal-title">Administrar Categorías</h5>
-            <span class="custom-close-button">&times;</span>
-        </div>
-        <div class="custom-modal-body">
-            <!-- Formulario para agregar nueva categoría -->
-            <form action="plantillas.php" method="post" class="mb-4">
-                <div class="input-group">
-                    <input type="text" class="form-control" name="nueva_categoria" placeholder="Nombre de la nueva categoría" required>
-                    <button class="btn btn-primary" type="submit" name="agregar_cat">Agregar</button>
-                </div>
-            </form>
-
-            <!-- Lista de categorías existentes -->
-            <ul class="list-group">
-                <?php foreach ($categorias as $cat): ?>
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <?= htmlspecialchars($cat['name']) ?>
-                        <a href="plantillas.php?del_cat=<?= $cat['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro de que quieres eliminar esta categoría?')">Eliminar</a>
-                    </li>
-                <?php endforeach; ?>
-            </ul>
-        </div>
-    </div>
-</div>
-
-<script>
-    // JavaScript para el modal custom
-    const modal = document.getElementById('categoriasModal');
-    const openBtn = document.getElementById('openCategoriasModalBtn'); // El botón que abre el modal
-    const closeBtn = document.getElementsByClassName("custom-close-button")[0];
-
-    if (openBtn) {
-        openBtn.onclick = function(event) {
-            event.preventDefault(); // Evita el comportamiento por defecto del enlace
-            modal.style.display = "flex"; // Usar flex para centrar
-        }
-    }
-
-    if (closeBtn) {
-        closeBtn.onclick = function() {
-            modal.style.display = "none";
-        }
-    }
-
-    window.onclick = function(event) {
-        if (event.target == modal) {
-            modal.style.display = "none";
-        }
-    }
-</script>

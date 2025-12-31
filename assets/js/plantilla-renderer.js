@@ -3,7 +3,7 @@
  * @param {HTMLElement} container - El elemento contenedor donde se renderizará la vista previa.
  * @param {object} datosPlantilla - Un objeto con los datos de la plantilla.
  */
-function renderizarPlantilla(container, datosPlantilla) {
+function renderizarPlantilla(container, datosPlantilla, colorTexto = 'black', fontScale = 1) {
     if (!container || !datosPlantilla) {
         console.error('Faltan el contenedor o los datos para renderizar la plantilla.');
         return;
@@ -36,11 +36,20 @@ function renderizarPlantilla(container, datosPlantilla) {
                 // Si tiene texto, se aplican todos los estilos y se asegura que sea visible.
                 item.el.textContent = item.data.texto;
                 item.el.style.fontFamily = item.data.fuente + ', sans-serif';
-                item.el.style.fontSize = item.data.tamano + 'px';
+                
+                // Aplicar factor de escala al tamaño de la fuente
+                const finalSize = (item.data.tamano || 10) * fontScale;
+                item.el.style.fontSize = finalSize + 'px';
+
+                // Escalar también el margen superior y definir un line-height consistente
+                const finalMargin = (item.data.margen || 0) * fontScale;
+                item.el.style.marginTop = finalMargin + 'px';
+                item.el.style.lineHeight = 1.1;
+
                 item.el.style.fontWeight = item.data.negrita ? 'bold' : 'normal';
                 item.el.style.textAlign = item.data.alineacion;
-                item.el.style.marginTop = item.data.margen + 'px';
                 item.el.style.textTransform = item.data.mayuscula ? 'uppercase' : 'none';
+                item.el.style.color = colorTexto; // Aplicar color de texto
                 item.el.style.height = 'auto';
                 item.el.style.marginBottom = 'auto';
                 item.el.style.visibility = 'visible';

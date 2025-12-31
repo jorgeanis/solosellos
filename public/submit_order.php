@@ -13,6 +13,8 @@ try {
     $email = $_POST['email'] ?? '';
     $phone = $_POST['phone'] ?? '';
     $address = $_POST['address'] ?? '';
+    $lat = $_POST['lat'] ?? null;
+    $lng = $_POST['lng'] ?? null;
     $comments = $_POST['comments'] ?? '';
 
     // --- Obtener el precio del modelo ---
@@ -64,51 +66,88 @@ try {
     $user = $stmt->fetch();
     if (!$user) throw new Exception("Usuario no encontrado.");
     $user_id = $user['id'];
+    
+    // Set Timezone based on user settings
+    $timezone = $user['timezone'] ?? 'America/Argentina/Buenos_Aires';
+    date_default_timezone_set($timezone);
 
     // --- 4. Generar código de pedido único ---
-    function generateOrderCode($length = 10) {
-        return substr(strtoupper(bin2hex(random_bytes(ceil($length / 2)))), 0, $length);
-    }
-    $order_code = generateOrderCode();
-    $exists = true;
-    while ($exists) {
-        $stmt = $pdo->prepare("SELECT id FROM orders WHERE order_code = ?");
-        $stmt->execute([$order_code]);
-        $exists = $stmt->fetchColumn() !== false;
-        if ($exists) {
-            $order_code = generateOrderCode();
-        }
-    }
-
-    // --- 5. Insertar en la base de datos ---
-    $sql = "INSERT INTO orders (
-        order_code, user_id, name, lastname, address, phone, email,
-        model_id, template_id, price,
-        text_line1, text_line2, text_line3, text_line4, comments, styles, referred_by,
-        created_at, status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 'pendiente')";
+    $editing_order_id = $_POST['editing_order_id'] ?? null;
     
-    $stmt = $pdo->prepare($sql);
+    if ($editing_order_id) {
+        // --- MODO EDICIÓN: Actualizar registro existente ---
+        $sql = "UPDATE orders SET 
+            name = ?, lastname = ?, address = ?, lat = ?, lng = ?, phone = ?, email = ?,
+            model_id = ?, template_id = ?, price = ?,
+            text_line1 = ?, text_line2 = ?, text_line3 = ?, text_line4 = ?, 
+            comments = ?, styles = ?
+            WHERE id = ? AND user_id = ? AND status = 'pendiente'";
+            
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+            $name, $lastname, $address, $lat, $lng, $phone, $email,
+            $model_id, $template_id, $model_price,
+            $text_lines[1], $text_lines[2], $text_lines[3], $text_lines[4],
+            $comments, $estilos_json,
+            $editing_order_id, $user_id
+        ]);
+        
+        // Recuperar el order_code original para la redirección
+        $stmt_code = $pdo->prepare("SELECT order_code FROM orders WHERE id = ?");
+        $stmt_code->execute([$editing_order_id]);
+        $order_code = $stmt_code->fetchColumn();
+        
+    } else {
+        // --- MODO CREACIÓN: Insertar nuevo registro ---
+        function generateOrderCode($length = 10) {
+            return substr(strtoupper(bin2hex(random_bytes(ceil($length / 2)))), 0, $length);
+        }
+        $order_code = generateOrderCode();
+        $exists = true;
+        while ($exists) {
+            $stmt = $pdo->prepare("SELECT id FROM orders WHERE order_code = ?");
+            $stmt->execute([$order_code]);
+            $exists = $stmt->fetchColumn() !== false;
+            if ($exists) {
+                $order_code = generateOrderCode();
+            }
+        }
 
-    $stmt->execute([
-        $order_code,
-        $user_id,
-        $name,
-        $lastname,
-        $address,
-        $phone,
-        $email,
-        $model_id,
-        $template_id,
-        $model_price,
-        $text_lines[1],
-        $text_lines[2],
-        $text_lines[3],
-        $text_lines[4],
-        $comments,
-        $estilos_json,
-        $referred_by_code
-    ]);
+        // --- 5. Insertar en la base de datos ---
+        $current_timestamp = date("Y-m-d H:i:s"); // Generar fecha con la zona horaria configurada en PHP
+
+        $sql = "INSERT INTO orders (
+            order_code, user_id, name, lastname, address, lat, lng, phone, email,
+            model_id, template_id, price,
+            text_line1, text_line2, text_line3, text_line4, comments, styles, referred_by,
+            created_at, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')";
+        
+        $stmt = $pdo->prepare($sql);
+
+        $stmt->execute([
+            $order_code,
+            $user_id,
+            $name,
+            $lastname,
+            $address,
+            $lat,
+            $lng,
+            $phone,
+            $email,
+            $model_id,
+            $template_id,
+            $model_price,
+            $text_lines[1],
+            $text_lines[2],
+            $text_lines[3],
+            $text_lines[4],
+            $comments,
+            $estilos_json,
+            $referred_by_code,
+            $current_timestamp // Insertar fecha PHP
+        ]);
+    }
 
     if ($stmt->rowCount() > 0) {
         error_log("DEBUG: Pedido insertado correctamente. Order ID: " . $pdo->lastInsertId());

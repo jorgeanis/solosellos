@@ -2,13 +2,19 @@
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 require_once 'includes/auth.php';
+require_once 'includes/db.php';
 
+// --- CONFIGURACIÓN & FILTROS ---
 $filtro = $_GET['estado'] ?? 'todos';
 $busqueda = $_GET['buscar'] ?? '';
 $fecha = $_GET['fecha'] ?? '';
 
 $condiciones = "orders.user_id = ?";
 $params = [$_SESSION['user']['id']];
+
+// Timezone
+$timezone = $_SESSION['user']['timezone'] ?? 'America/Argentina/Buenos_Aires';
+date_default_timezone_set($timezone);
 
 if ($filtro !== 'todos') {
     $condiciones .= " AND status = ?";
@@ -29,28 +35,24 @@ if (!empty($busqueda)) {
     }
 }
 
-require_once 'includes/db.php';
-
-// --- GET CUSTOM STATUSES for the current user ---
+// --- ESTADOS PERSONALIZADOS ---
 $stmt_statuses = $pdo->prepare("SELECT * FROM custom_statuses WHERE user_id = ? ORDER BY display_order ASC, status_name ASC");
 $stmt_statuses->execute([$_SESSION['user']['id']]);
 $custom_statuses = $stmt_statuses->fetchAll(PDO::FETCH_ASSOC);
 
-// Create a lookup array for status colors for easy access
 $status_colors = [];
 foreach ($custom_statuses as $status) {
     $status_colors[$status['status_name']] = $status['color'];
 }
 
-
-// --- PAGINATION ---
+// --- PAGINACIÓN ---
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 if ($page < 1) $page = 1;
 
 $per_page = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 10;
 if (!in_array($per_page, [10, 25, 50, 100])) $per_page = 10;
 
-// --- GET TOTAL COUNT for pagination ---
+// Total Count
 $count_sql = "SELECT COUNT(*) FROM orders JOIN users ON orders.user_id = users.id WHERE $condiciones";
 $count_stmt = $pdo->prepare($count_sql);
 $count_stmt->execute($params);
@@ -59,7 +61,7 @@ $total_pages = ceil($total_orders / $per_page);
 
 $offset = ($page - 1) * $per_page;
 
-// --- GET ORDERS for current page ---
+// Fetch Orders
 $sql = "SELECT orders.*, users.whatsapp, users.link_code, models.image AS model_image FROM orders JOIN models ON orders.model_id = models.id
 JOIN users ON orders.user_id = users.id WHERE $condiciones ORDER BY id DESC LIMIT " . (int)$per_page . " OFFSET " . (int)$offset;
 
@@ -67,6 +69,7 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// Fuentes para previsualización
 $fonts = [];
 foreach ($orders as $order) {
     $styles = json_decode($order["styles"], true);
@@ -79,639 +82,720 @@ foreach ($orders as $order) {
     }
 }
 
-require_once 'includes/header.php';
+// --- RUTAS & EXPORTACIONES ---
+$rutas = [];
+try {
+    $stmt_rutas = $pdo->query("SELECT * FROM rutas ORDER BY fecha_creacion DESC LIMIT 50");
+    $rutas = $stmt_rutas->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {}
 
+$stmt_batches = $pdo->prepare("SELECT * FROM export_batches WHERE user_id = ? ORDER BY export_date DESC");
+$stmt_batches->execute([$_SESSION['user']['id']]);
+$export_batches = $stmt_batches->fetchAll(PDO::FETCH_ASSOC);
+
+// --- ACCIONES POST ---
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['pedido_id'], $_POST['nuevo_estado'])) {
     $stmt = $pdo->prepare("UPDATE orders SET status = ? WHERE id = ? AND orders.user_id = ?");
     $stmt->execute([$_POST['nuevo_estado'], $_POST['pedido_id'], $_SESSION['user']['id']]);
     header("Location: pedidos.php?" . http_build_query($_GET));
     exit;
 }
+
+$current_tab = $_GET['tab'] ?? 'pedidos';
+
+require_once 'includes/header.php';
 ?>
 
+<!-- Estilos Específicos para Previews (Legacy Support) -->
 <?php foreach ($fonts as $font): ?>
 <link href="https://fonts.googleapis.com/css2?family=<?= str_replace(' ', '+', $font) ?>:wght@400;700&display=swap" rel="stylesheet">
 <?php endforeach; ?>
-
 <link rel="stylesheet" href="../assets/css/plantilla-preview.css">
-
 <style>
-.preview-section {
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-.plantilla-preview-wrapper {
-    position: relative;
-    width: 194px;  /* 404px * 0.48 */
-    height: 80px;  /* 164px * 0.48 */
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    background-color: #000; /* Fondo negro */
-    overflow: hidden;
-}
-.plantilla-preview-wrapper .plantilla-preview-container {
-    border-color: #ccc; /* Borde gris claro */
-    background: #000; /* Fondo negro para el contenedor interior */
-    transform: scale(0.48);
-    transform-origin: top left;
-}
-.preview {
-    transform: scale(0.5);
-    transform-origin: top left;
-    width: 420px;
-    height: 180px;
-    background: black;
-    border: 1px dashed #aaa;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    text-align: center;
-    line-height: 1;
-}
-.linea-prev {
-    width: 100%;
-    margin-bottom: 5px;
-}
-
-.preview-wrapper {
-    width: 105px; /* To contain the scaled plantilla-preview-wrapper (100px) */
-    height: 100px; /* To contain the scaled plantilla-preview-wrapper (98px) */
-    /* Removed overflow: hidden; */
-    justify-content: center;
-    align-items: center;
-}
-#sidebarWidget {
-    position: fixed;
-    top: 0;
-    right: -350px;
-    width: 320px;
-    height: 100%;
-    background: white;
-    box-shadow: -2px 0 6px rgba(0,0,0,0.1);
-    z-index: 999;
-    padding: 20px;
-    transition: right 0.3s ease;
-}
-#sidebarWidget.active {
-    right: 0;
-}
-#sidebarWidget .close {
-    position: absolute;
-    top: 10px; right: 10px;
-    border: none;
-    background: #ccc;
-    border-radius: 50%;
-    width: 28px;
-    height: 28px;
-    cursor: pointer;
-}
-#openSidebarBtn {
-    position: fixed;
-    top: 50%;
-    right: 0;
-    transform: translateY(-50%);
-    background: #2c3e50;
-    color: white;
-    width: 40px;
-    height: 80px;
-    border-radius: 10px 0 0 10px;
-    font-size: 20px;
-    cursor: pointer;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-#sidebarWidget a.download {
-    background: #3498db;
-    display: block;
-    color: white;
-    text-align: center;
-    text-decoration: none;
-    padding: 7px 0;
-    border-radius: 5px;
-    margin-top: 10px;
-}
-
-/* FAB styles */
-.fab-container {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    display: flex;
-    flex-direction: column; /* Stack buttons vertically */
-    gap: 10px; /* Space between buttons */
-    z-index: 1000; /* Ensure it stays on top */
-}
-
-.fab-container button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 56px; /* Standard FAB size */
-    height: 56px; /* Standard FAB size */
-    border-radius: 50%; /* Make it round */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Floating effect */
-    border: none;
-    cursor: pointer;
-    font-size: 24px; /* Adjust emoji size */
-    color: white; /* Default text color (emojis usually don't inherit this well, but for consistency) */
-    padding: 0; /* Remove default padding */
-    transition: all 0.3s ease;
-    text-decoration: none; /* For the link-like buttons */
-}
-
-/* Specific styles for each button to override default */
-#exportarPDF {
-    background-color: #3498db; /* Blue */
-}
-
-#eliminarSeleccionados {
-    background-color: #e74c3c; /* Red */
-}
-
-.fab-container button:hover {
-    transform: scale(1.05);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-}
-
-table td {
-    padding: 2px 8px; /* Reducir el padding vertical y horizontal */
-}
+    /* Fix para mantener el aspecto de los previews sin que Tailwind interfiera */
+    .plantilla-preview-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        width: 210px;
+        height: 80px;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
+        background-color: #000;
+        overflow: hidden;
+        margin: 0 auto;
+    }
+    .plantilla-preview-wrapper .plantilla-preview-container {
+        width: 410px;
+        height: 160px;
+        background: #000;
+        flex-shrink: 0;
+        transform: scale(0.48);
+        transform-origin: center;
+    }
 </style>
 
-<!-- Botón tipo pestaña -->
-<div id="openSidebarBtn" onclick="abrirSidebar()">🔍</div>
-
-<!-- Sidebar deslizante -->
-<div id="sidebarWidget">
-    <button class="close" onclick="cerrarSidebar()">×</button>
-    <form method="GET" style="display:flex; flex-direction:column; gap:10px; margin-top:30px;">
-        <label><strong>Estado:</strong></label>
-        <select name="estado">
-            <option value="todos" <?= $filtro === 'todos' ? 'selected' : '' ?>>Todos</option>
-            <?php foreach ($custom_statuses as $status): ?>
-                <option value="<?= htmlspecialchars($status['status_name']) ?>" <?= $filtro === $status['status_name'] ? 'selected' : '' ?>>
-                    <?= htmlspecialchars($status['status_name']) ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
-        <label><strong>Texto o nombre:</strong></label>
-        <input type="text" name="buscar" value="<?= htmlspecialchars($busqueda) ?>">
-        <label><strong>Fecha:</strong></label>
-        <input type="date" name="fecha" value="<?= htmlspecialchars($fecha) ?>">
-        <div style="display: flex; gap: 10px;">
-            <button type="submit" style="flex:1; font-size:14px; display:flex; align-items:center; justify-content:center;">🔍 Buscar</button>
-            <button type="button" onclick="window.location.href='pedidos.php'" style="flex:1; background:#e74c3c; color:white; padding:7px 0; border-radius:5px; font-size:14px; font-family:inherit; display:flex; align-items:center; justify-content:center;">🧹 Limpiar</button>
-        </div>
-    </form>
-    <a class="download" href="pedidos.php?<?= http_build_query(array_merge($_GET, ['exportar' => 'csv'])) ?>">📥 Descargar CSV</a>
-</div>
-
-<script>
-function abrirSidebar() {
-    document.getElementById('sidebarWidget').classList.add('active');
-}
-function cerrarSidebar() {
-    document.getElementById('sidebarWidget').classList.remove('active');
-}
-</script>
-
-<?php
-$view = $_GET['view'] ?? 'pedidos'; // Default to 'pedidos' view
-?>
-
-<div class="view-switcher" style="margin-bottom: 20px; border-bottom: 1px solid #ccc;">
-    <a href="?view=pedidos" style="display: inline-block; padding: 10px 15px; text-decoration:none; color: <?= $view === 'pedidos' ? '#1abc9c' : '#333' ?>; font-weight: <?= $view === 'pedidos' ? 'bold' : 'normal' ?>; border-bottom: 2px solid <?= $view === 'pedidos' ? '#1abc9c' : 'transparent' ?>;">Pedidos</a>
-    <a href="?view=exportaciones" style="display: inline-block; padding: 10px 15px; text-decoration:none; color: <?= $view === 'exportaciones' ? '#1abc9c' : '#333' ?>; font-weight: <?= $view === 'exportaciones' ? 'bold' : 'normal' ?>; border-bottom: 2px solid <?= $view === 'exportaciones' ? '#1abc9c' : 'transparent' ?>;">Exportaciones Guardadas</a>
-</div>
-
-<?php if ($view === 'exportaciones'): ?>
-
-    <?php
-    // --- FETCH EXPORT BATCHES ---
-    $stmt_batches = $pdo->prepare("SELECT * FROM export_batches WHERE user_id = ? ORDER BY export_date DESC");
-    $stmt_batches->execute([$_SESSION['user']['id']]);
-    $export_batches = $stmt_batches->fetchAll(PDO::FETCH_ASSOC);
-    ?>
+<!-- Barra de Herramientas Principal -->
+<div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
     
-    <h2>Exportaciones Guardadas</h2>
-    
-    <?php if (empty($export_batches)): ?>
-        <p>No has guardado ninguna exportación todavía.</p>
-    <?php else: ?>
-        <table>
-            <thead>
-                <tr>
-                    <th>Fecha de Exportación</th>
-                    <th style="width: 200px;">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($export_batches as $batch): ?>
-                    <tr>
-                        <td>
-                            <?php
-                                try {
-                                    $utc_date = new DateTime($batch['export_date'], new DateTimeZone('UTC'));
-                                    $utc_date->setTimezone(new DateTimeZone('America/Argentina/Buenos_Aires'));
-                                    echo $utc_date->format('d/m/Y H:i:s');
-                                } catch (Exception $e) {
-                                    echo date('d/m/Y H:i:s', strtotime($batch['export_date']));
-                                }
-                            ?>
-                        </td>
-                        <td>
-                            <div style="display: flex; flex-direction: row; justify-content: space-around; align-items: center;">
-                                <a href="preparar_pdf.php?batch_id=<?= $batch['id'] ?>" target="_blank" title="Editar" style="text-decoration:none; color: #2c3e50; font-size: 20px;">✏️</a>
-                                
-                                <button class="preview-btn" 
-                                        title="Vista Previa" 
-                                        style="background:none; border:none; cursor:pointer; color: #3498db; font-size: 20px; padding:0; vertical-align:middle;"
-                                        data-layout='<?= htmlspecialchars($batch['layout_state'] ?? 'null') ?>'>
-                                    👁️
-                                </button>
-
-                                <a href="eliminar_exportacion.php?id=<?= $batch['id'] ?>" 
-                                   title="Eliminar" 
-                                   onclick="return confirm('¿Estás seguro de que deseas eliminar esta exportación guardada? Esta acción no se puede deshacer.');" 
-                                   style="text-decoration:none; color: #c0392b; font-size: 20px;">
-                                   🗑️
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    <?php endif; ?>
-
-    <!-- Modal for Preview -->
-    <div id="previewModal" style="display:none; position:fixed; z-index:2000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.6); justify-content:center; align-items:center;">
-        <div id="modalContent" style="background:#fff; padding:20px; border-radius:8px; position:relative; width: 250px; height: 350px;">
-            <span id="closeModal" style="position:absolute; top:10px; right:15px; font-size:24px; cursor:pointer;">&times;</span>
-            <h4 style="text-align:center; margin-top:0;">Vista Previa</h4>
-            <div id="previewSheet" style="width:210px; height:297px; background:#f0f0f0; position:relative; border:1px solid #ccc; margin: 10px auto 0;">
-                <!-- Preview items will be injected here by JS -->
-            </div>
-        </div>
+    <!-- Pestañas (Tabs) -->
+    <div class="flex space-x-1 bg-gray-200 p-1 rounded-xl">
+        <a href="?tab=pedidos" class="px-4 py-2 rounded-lg text-sm font-medium transition-all <?= $current_tab == 'pedidos' ? 'bg-white text-brand-600 shadow-sm' : 'text-gray-500 hover:text-gray-700' ?>">
+            <i class="fas fa-box mr-1.5"></i> Pedidos
+        </a>
+        <a href="?tab=rutas" class="px-4 py-2 rounded-lg text-sm font-medium transition-all <?= $current_tab == 'rutas' ? 'bg-white text-brand-600 shadow-sm' : 'text-gray-500 hover:text-gray-700' ?>">
+            <i class="fas fa-route mr-1.5"></i> Rutas
+        </a>
+        <a href="?tab=exportaciones" class="px-4 py-2 rounded-lg text-sm font-medium transition-all <?= $current_tab == 'exportaciones' ? 'bg-white text-brand-600 shadow-sm' : 'text-gray-500 hover:text-gray-700' ?>">
+            <i class="fas fa-file-export mr-1.5"></i> Exportaciones
+        </a>
     </div>
 
-<?php else: // This is the 'pedidos' view ?>
-
-<h2>Pedidos Recibidos</h2>
-
-<div class="fab-container">
-    <button id="crearRuta" title="Crear Hoja de Ruta">🗺️</button>
-    <button id="exportarPDF" title="Exportar seleccionados a PDF">📄</button>
-    <button id="eliminarSeleccionados" title="Eliminar seleccionados">🗑️</button>
+    <!-- Botón de Filtros (Drawer Trigger) -->
+    <button onclick="abrirSidebar()" class="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium shadow-sm">
+        <i class="fas fa-filter text-brand-500"></i> Filtros y Búsqueda
+    </button>
 </div>
 
-<table>
-    <thead>
-        <tr>
-            <th>⬇️</th>
-            <th>#</th>
-            <th>Cliente</th>
-            <th>📱</th>
-            <th>Dirección</th>
-            <th>Indicaciones</th>
-            <th>Modelo</th>
-            <th>Preview</th>
-            
-            <th>Estado</th>
-            <th>Fecha</th>
-            <th style="width: 140px;">Acciones</th>
-        </tr>
-    </thead>
-    <tbody>
-    <?php foreach ($orders as $order): ?>
-        <?php
-            $bg = $status_colors[$order['status']] ?? '#FFFFFF'; // Default to white if status not found
-            $styles = json_decode($order["styles"], true);
-        ?>
-        <?php
-    $bg = $status_colors[$order['status']] ?? '#FFFFFF'; // Default to white if status not found
-?>
-<tr style="background-color: <?= $bg ?>;">
-            <td><input type="checkbox" class="select-preview" value="<?= $order['id'] ?>"></td>
-            <td><?= $order['id'] ?></td>
-            <td><?= $order['name'] ?> <?= $order['lastname'] ?></td>
-            <?php
-            $cleaned_phone = preg_replace('/[^0-9]/', '', $order['phone']);
-            $whatsapp_link_number = '';
-            if (strlen($cleaned_phone) == 10) { // e.g., 381xxxxxxx
-                $whatsapp_link_number = '+549' . $cleaned_phone;
-            } elseif (strlen($cleaned_phone) == 12 && substr($cleaned_phone, 0, 3) == '549') { // e.g., 549381xxxxxxx
-                $whatsapp_link_number = '+' . $cleaned_phone;
-            } else { // Fallback, assume it might be an international number or already has '+'
-                $whatsapp_link_number = '+' . $cleaned_phone;
-            }
-            ?>
-            <td>
-                <a href="https://wa.me/<?= $whatsapp_link_number ?>" target="_blank" style="font-size:20px; text-decoration:none;">📱</a>
-                <?= htmlspecialchars($order['phone']) ?>
-            </td>
-            <td><?= $order['address'] ?></td>
-            <td><small><?= htmlspecialchars($order['comments'] ?? '') ?></small></td>
-            <td><img src="../assets/images/<?= $order['model_image'] ?>" style="max-height:40px; display:block; margin:auto;"></td>
-            <td>
-                    <?php
-                    // Preparar datos para el renderizador (esto ya estaba bien, lo mantengo)
-                    $plantilla_data = [
-                        'id' => $order['template_id'],
-                        'nombre' => $order['template_name'] ?? 'Plantilla sin nombre'
-                    ];
+<!-- CONTENIDO: PEDIDOS -->
+<?php if ($current_tab == 'pedidos'): ?>
+<div class="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+    
+    <!-- Floating Action Buttons -->
+    <div class="fixed bottom-6 right-6 flex flex-col gap-3 z-40">
+        <button id="crearRuta" title="Crear Hoja de Ruta" class="w-12 h-12 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 flex items-center justify-center transition-transform hover:scale-105">
+            <i class="fas fa-map-marked-alt text-lg"></i>
+        </button>
+        <button id="exportarPDF" title="Exportar a PDF" class="w-12 h-12 bg-brand-600 text-white rounded-full shadow-lg hover:bg-brand-700 flex items-center justify-center transition-transform hover:scale-105">
+            <i class="fas fa-file-pdf text-lg"></i>
+        </button>
+        <button id="eliminarSeleccionados" title="Eliminar Seleccionados" class="w-12 h-12 bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 flex items-center justify-center transition-transform hover:scale-105">
+            <i class="fas fa-trash-alt text-lg"></i>
+        </button>
+    </div>
 
-                    for ($i = 1; $i <= 4; $i++) {
-                        $plantilla_data["linea$i"] = [
-                            'texto' => $order["text_line$i"],
-                            'fuente' => $styles['fuente'][$i-1] ?? 'Arial',
-                            'tamano' => $styles['tamano'][$i-1] ?? '16',
-                            'negrita' => $styles['bold'][$i-1] ?? false,
-                            'alineacion' => $styles['alineacion'][$i-1] ?? 'center',
-                            'margen' => $styles['margen_top'][$i-1] ?? '0',
-                            'mayuscula' => $styles['mayuscula'][$i-1] ?? false
-                        ];
-                    }
-                    ?>
-                <div class="preview-section">
-                    <div class="plantilla-preview-wrapper" 
-                         id="preview-<?= $order['id'] ?>"
-                         data-template-data='<?= htmlspecialchars(json_encode($plantilla_data), ENT_QUOTES, 'UTF-8') ?>'>
+    <!-- VISTA MÓVIL: TARJETAS (Visible solo en móvil) -->
+    <div class="block md:hidden p-4 space-y-4 bg-gray-50">
+        <?php foreach ($orders as $order): 
+            $statusColor = $status_colors[$order['status']] ?? '#cbd5e1';
+            $cleaned_phone = preg_replace('/[^0-9]/', '', $order['phone']);
+            $wa_link = strlen($cleaned_phone) >= 10 ? "https://wa.me/549" . substr($cleaned_phone, -10) : "#";
+            
+            // Reutilizamos lógica de preview
+            $styles = json_decode($order["styles"], true);
+            $plantilla_data = [
+                'id' => $order['template_id'],
+                'nombre' => $order['template_name'] ?? 'Sin nombre'
+            ];
+            for ($i = 1; $i <= 4; $i++) {
+                $plantilla_data["linea$i"] = [
+                    'texto' => $order["text_line$i"],
+                    'fuente' => $styles['fuente'][$i-1] ?? 'Arial',
+                    'tamano' => $styles['tamano'][$i-1] ?? '16',
+                    'negrita' => $styles['bold'][$i-1] ?? false,
+                    'alineacion' => $styles['alineacion'][$i-1] ?? 'center',
+                    'margen' => $styles['margen_top'][$i-1] ?? '0',
+                    'mayuscula' => $styles['mayuscula'][$i-1] ?? false
+                ];
+            }
+        ?>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden relative">
+            <!-- Barra lateral de color estado -->
+            <div class="absolute left-0 top-0 bottom-0 w-1.5" style="background-color: <?= $statusColor ?>;"></div>
+            
+            <div class="p-4 pl-5">
+                <!-- Header Tarjeta -->
+                <div class="flex justify-between items-start mb-3">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" class="select-preview w-5 h-5 text-brand-600 border-gray-300 rounded focus:ring-brand-500" value="<?= $order['id'] ?>">
+                        <span class="font-bold text-gray-800">#<?= $order['id'] ?></span>
+                    </div>
+                    <div class="text-xs text-gray-400"><?= date('d/m H:i', strtotime($order['created_at'])) ?></div>
+                </div>
+
+                <!-- Info Cliente -->
+                <div class="mb-3">
+                    <h3 class="font-semibold text-gray-900 text-lg leading-tight mb-1">
+                        <?= htmlspecialchars($order['name'] . ' ' . $order['lastname']) ?>
+                    </h3>
+                    <div class="flex flex-col gap-1 text-sm text-gray-600">
+                        <?php if(!empty($order['address'])): ?>
+                            <div class="flex items-start gap-2">
+                                <i class="fas fa-map-marker-alt mt-1 text-gray-400 w-4 text-center"></i>
+                                <span><?= htmlspecialchars($order['address']) ?></span>
+                                <?php if($order['lat'] && $order['lng']): ?>
+                                    <i class="fas fa-crosshairs text-blue-500 text-[10px] mt-1.5" title="Ubicación GPS precisa"></i>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+                        <div class="flex items-center gap-2">
+                            <a href="<?= $wa_link ?>" target="_blank" class="text-green-600 bg-green-50 px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1">
+                                <i class="fab fa-whatsapp"></i> WhatsApp
+                            </a>
+                            <span class="text-gray-500 text-xs"><?= htmlspecialchars($order['phone']) ?></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preview y Estado -->
+                <div class="bg-gray-50 rounded-lg p-3 mb-3 border border-gray-100 flex flex-col items-center">
+                    <div class="plantilla-preview-wrapper shadow-sm mb-3" id="preview-mobile-<?= $order['id'] ?>" data-template-data='<?= htmlspecialchars(json_encode($plantilla_data), ENT_QUOTES, 'UTF-8') ?>'>
                         <?php 
                         $plantilla = $plantilla_data; 
                         include 'includes/_plantilla_preview.php'; 
                         ?>
                     </div>
+                    
+                    <form method="POST" class="w-full">
+                        <input type="hidden" name="pedido_id" value='<?= $order["id"] ?>'>
+                        <div class="relative">
+                            <select name="nuevo_estado" onchange="this.form.submit()" 
+                                class="appearance-none block w-full pl-3 pr-8 py-2 text-sm font-semibold rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer text-gray-700 bg-white shadow-sm">
+                                <?php foreach ($custom_statuses as $status): ?>
+                                    <option value="<?= htmlspecialchars($status['status_name']) ?>" <?= $order['status'] === $status['status_name'] ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($status['status_name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                                <?php if (empty($custom_statuses)): ?>
+                                    <option><?= htmlspecialchars($order['status']) ?></option>
+                                <?php endif; ?>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+                                <i class="fas fa-chevron-down text-xs"></i>
+                            </div>
+                        </div>
+                    </form>
                 </div>
-            </td>
-            
-            <td>
-                <form method="POST" style="margin:0;">
-                    <input type="hidden" name="pedido_id" value='<?= $order["id"] ?>'>
-                    <select name="nuevo_estado" onchange="this.form.submit()">
-                        <?php foreach ($custom_statuses as $status): ?>
-                            <option value="<?= htmlspecialchars($status['status_name']) ?>" <?= $order['status'] === $status['status_name'] ? 'selected' : '' ?> style="background-color: <?= htmlspecialchars($status['color']) ?>;">
-                                <?= htmlspecialchars($status['status_name']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                        <?php if (empty($custom_statuses)): ?>
-                            <option><?= htmlspecialchars($order['status']) ?></option>
-                        <?php endif; ?>
-                    </select>
-                </form>
-            </td>
-            <td><?= date('d/m/Y H:i', strtotime($order['created_at'])) ?></td>
-            <td style="text-align: center; width: 140px;">
-                <div style="display: flex; flex-direction: row; justify-content: space-around; align-items: center;">
-                    <a href="../public/thanks.php?order=<?= htmlspecialchars($order['order_code'] ?? '') ?>&u=<?= htmlspecialchars($order['link_code'] ?? '') ?>" target="_blank" title="Ver Pedido" style="text-decoration:none; color: #3498db; font-size: 20px;">
-                        👁️
-                    </a>
-                    <a href="../public/index.php?u=<?= htmlspecialchars($order['link_code']) ?>&order_id=<?= $order['id'] ?>" target="_blank" title="Modificar Pedido" style="text-decoration:none; color: #2c3e50; font-size: 20px;">
-                        ✏️
-                    </a>
-                    <a href="eliminar_pedido.php?id=<?= $order['id'] ?>" class="delete-link" title="Eliminar Pedido" style="text-decoration:none; color: #c0392b; font-size: 20px;">
-                        🗑️
-                    </a>
-                </div>
-            </td>
-        </tr>
-    <?php endforeach; ?>
-    </tbody>
-</table>
 
-<div class="pagination-container" style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
-    <form method="GET" style="display: flex; align-items: center; gap: 10px;">
-        <?php 
-            // Preserve existing filters
-            foreach ($_GET as $key => $value) {
-                if ($key !== 'per_page' && $key !== 'page') {
-                    echo '<input type="hidden" name="' . htmlspecialchars($key) . '" value="' . htmlspecialchars($value) . '">';
-                }
-            }
-        ?>
-        <label for="per_page">Pedidos por página:</label>
-        <select name="per_page" id="per_page" onchange="this.form.submit()">
-            <option value="10" <?= $per_page == 10 ? 'selected' : '' ?>>10</option>
-            <option value="25" <?= $per_page == 25 ? 'selected' : '' ?>>25</option>
-            <option value="50" <?= $per_page == 50 ? 'selected' : '' ?>>50</option>
-            <option value="100" <?= $per_page == 100 ? 'selected' : '' ?>>100</option>
-        </select>
-    </form>
-    <nav>
-        <ul class="pagination" style="list-style: none; display: flex; gap: 5px; padding: 0; margin: 0;">
-            <?php
-            if ($total_pages > 1) {
+                <!-- Acciones Footer -->
+                <div class="flex justify-between items-center pt-2 border-t border-gray-100">
+                    <div class="flex gap-2">
+                        <?php if($order['model_image']): ?>
+                            <img src="../assets/images/<?= $order['model_image'] ?>" class="h-8 w-8 object-contain rounded border border-gray-200 p-0.5" alt="Modelo">
+                        <?php endif; ?>
+                    </div>
+                    <div class="flex gap-3">
+                        <a href="../public/thanks.php?order=<?= htmlspecialchars($order['order_code'] ?? '') ?>&u=<?= htmlspecialchars($order['link_code'] ?? '') ?>" target="_blank" class="text-gray-400 hover:text-brand-600 bg-gray-50 p-2 rounded-full" title="Ver Público">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        <a href="editar_pedido.php?id=<?= $order['id'] ?>" class="text-gray-400 hover:text-blue-600 bg-gray-50 p-2 rounded-full" title="Editar">
+                            <i class="fas fa-pen"></i>
+                        </a>
+                        <a href="eliminar_pedido.php?id=<?= $order['id'] ?>" class="delete-link text-gray-400 hover:text-red-600 bg-gray-50 p-2 rounded-full" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+
+    <!-- VISTA ESCRITORIO: TABLA (Visible solo en md+) -->
+    <div class="hidden md:block overflow-x-auto">
+        <table class="w-full text-sm text-left text-gray-500">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-100">
+                <tr>
+                    <th class="px-4 py-3 w-10 text-center">
+                        <i class="fas fa-check-square text-gray-400"></i>
+                    </th>
+                    <th class="px-4 py-3">#ID</th>
+                    <th class="px-4 py-3">Cliente</th>
+                    <th class="px-4 py-3">Contacto</th>
+                    <th class="px-4 py-3">Detalle</th>
+                    <th class="px-4 py-3 text-center">Vista Previa</th>
+                    <th class="px-4 py-3">Estado</th>
+                    <th class="px-4 py-3 text-right">Acciones</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+            <?php foreach ($orders as $order): ?>
+                <?php 
+                    $statusColor = $status_colors[$order['status']] ?? '#cbd5e1';
+                ?>
+                <tr class="bg-white hover:bg-gray-50 transition-colors group">
+                    <td class="px-4 py-4 text-center">
+                        <input type="checkbox" class="select-preview w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500" value="<?= $order['id'] ?>">
+                    </td>
+                    <td class="px-4 py-4 font-medium text-gray-900">
+                        #<?= $order['id'] ?>
+                        <div class="text-xs text-gray-400 mt-0.5"><?= date('d/m H:i', strtotime($order['created_at'])) ?></div>
+                    </td>
+                    <td class="px-4 py-4">
+                        <div class="font-semibold text-gray-800"><?= htmlspecialchars($order['name'] . ' ' . $order['lastname']) ?></div>
+                        <?php if(!empty($order['address'])): ?>
+                            <div class="text-xs text-gray-500 mt-1 flex items-start gap-1">
+                                <i class="fas fa-map-marker-alt mt-0.5 text-gray-400"></i>
+                                <span class="truncate max-w-[150px]"><?= htmlspecialchars($order['address']) ?></span>
+                                <?php if($order['lat'] && $order['lng']): ?>
+                                    <i class="fas fa-crosshairs text-blue-500 text-[10px] mt-0.5" title="GPS"></i>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+                    </td>
+                    <td class="px-4 py-4">
+                        <?php
+                            $cleaned_phone = preg_replace('/[^0-9]/', '', $order['phone']);
+                            $wa_link = strlen($cleaned_phone) >= 10 ? "https://wa.me/549" . substr($cleaned_phone, -10) : "#";
+                        ?>
+                        <div class="flex items-center gap-2">
+                            <a href="<?= $wa_link ?>" target="_blank" class="text-green-500 hover:text-green-600 bg-green-50 hover:bg-green-100 p-1.5 rounded-full transition-colors">
+                                <i class="fab fa-whatsapp text-lg"></i>
+                            </a>
+                            <span class="text-xs text-gray-600"><?= htmlspecialchars($order['phone']) ?></span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-4">
+                        <div class="flex items-center gap-3">
+                            <?php if($order['model_image']): ?>
+                                <img src="../assets/images/<?= $order['model_image'] ?>" class="h-8 w-8 object-contain rounded border border-gray-200 bg-white p-0.5" alt="Modelo">
+                            <?php endif; ?>
+                            <?php if(!empty($order['comments'])): ?>
+                                <span class="text-xs bg-yellow-50 text-yellow-700 px-2 py-1 rounded border border-yellow-100" title="<?= htmlspecialchars($order['comments']) ?>">
+                                    <i class="fas fa-comment-alt mr-1"></i> Nota
+                                </span>
+                            <?php endif; ?>
+                        </div>
+                    </td>
+                    <td class="px-4 py-4 text-center">
+                        <?php
+                            $styles = json_decode($order["styles"], true);
+                            $plantilla_data = [
+                                'id' => $order['template_id'],
+                                'nombre' => $order['template_name'] ?? 'Sin nombre'
+                            ];
+                            for ($i = 1; $i <= 4; $i++) {
+                                $plantilla_data["linea$i"] = [
+                                    'texto' => $order["text_line$i"],
+                                    'fuente' => $styles['fuente'][$i-1] ?? 'Arial',
+                                    'tamano' => $styles['tamano'][$i-1] ?? '16',
+                                    'negrita' => $styles['bold'][$i-1] ?? false,
+                                    'alineacion' => $styles['alineacion'][$i-1] ?? 'center',
+                                    'margen' => $styles['margen_top'][$i-1] ?? '0',
+                                    'mayuscula' => $styles['mayuscula'][$i-1] ?? false
+                                ];
+                            }
+                        ?>
+                        <div class="plantilla-preview-wrapper shadow-sm" id="preview-<?= $order['id'] ?>" data-template-data='<?= htmlspecialchars(json_encode($plantilla_data), ENT_QUOTES, 'UTF-8') ?>'>
+                            <?php 
+                            $plantilla = $plantilla_data; 
+                            include 'includes/_plantilla_preview.php'; 
+                            ?>
+                        </div>
+                    </td>
+                    <td class="px-4 py-4">
+                        <form method="POST" class="m-0">
+                            <input type="hidden" name="pedido_id" value='<?= $order["id"] ?>'>
+                            <div class="relative">
+                                <select name="nuevo_estado" onchange="this.form.submit()" 
+                                    class="appearance-none block w-full pl-3 pr-8 py-1.5 text-xs font-semibold rounded-full border-none focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-brand-500 cursor-pointer text-white shadow-sm transition-opacity hover:opacity-90"
+                                    style="background-color: <?= $statusColor ?>; background-image: none;">
+                                    <?php foreach ($custom_statuses as $status): ?>
+                                        <option value="<?= htmlspecialchars($status['status_name']) ?>" class="bg-white text-gray-800" <?= $order['status'] === $status['status_name'] ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($status['status_name']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                    <?php if (empty($custom_statuses)): ?>
+                                        <option class="bg-white text-gray-800"><?= htmlspecialchars($order['status']) ?></option>
+                                    <?php endif; ?>
+                                </select>
+                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-white">
+                                    <i class="fas fa-chevron-down text-[10px]"></i>
+                                </div>
+                            </div>
+                        </form>
+                    </td>
+                    <td class="px-4 py-4 text-right">
+                        <div class="flex justify-end gap-2">
+                            <a href="../public/thanks.php?order=<?= htmlspecialchars($order['order_code'] ?? '') ?>&u=<?= htmlspecialchars($order['link_code'] ?? '') ?>" target="_blank" class="p-2 text-gray-400 hover:text-brand-600 transition-colors" title="Ver Público">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="editar_pedido.php?id=<?= $order['id'] ?>" class="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="Editar">
+                                <i class="fas fa-pen"></i>
+                            </a>
+                            <a href="eliminar_pedido.php?id=<?= $order['id'] ?>" class="delete-link p-2 text-gray-400 hover:text-red-600 transition-colors" title="Eliminar">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Paginación Tailwind -->
+    <div class="flex flex-col md:flex-row justify-between items-center p-4 border-t border-gray-100 gap-4">
+        
+        <!-- Selector Per Page -->
+        <form method="GET" class="flex items-center gap-2 text-sm text-gray-600">
+            <?php foreach ($_GET as $key => $value): if ($key !== 'per_page' && $key !== 'page') echo '<input type="hidden" name="' . htmlspecialchars($key) . '" value="' . htmlspecialchars($value) . '">'; endforeach; ?>
+            <span>Mostrar</span>
+            <select name="per_page" onchange="this.form.submit()" class="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-brand-500 focus:border-brand-500 block p-1.5">
+                <option value="10" <?= $per_page == 10 ? 'selected' : '' ?>>10</option>
+                <option value="25" <?= $per_page == 25 ? 'selected' : '' ?>>25</option>
+                <option value="50" <?= $per_page == 50 ? 'selected' : '' ?>>50</option>
+                <option value="100" <?= $per_page == 100 ? 'selected' : '' ?>>100</option>
+            </select>
+            <span>por pág.</span>
+        </form>
+
+        <!-- Paginador -->
+        <?php if ($total_pages > 1): ?>
+        <nav>
+            <ul class="inline-flex -space-x-px text-sm">
+                <?php
                 $query_params = $_GET;
                 unset($query_params['page']);
                 $base_url = http_build_query($query_params);
+                ?>
+                
+                <?php if ($page > 1): ?>
+                <li>
+                    <a href="?<?= $base_url ?>&page=<?= $page - 1 ?>" class="flex items-center justify-center px-3 h-8 ml-0 leading-tight text-gray-500 bg-white border border-gray-300 rounded-l-lg hover:bg-gray-100 hover:text-gray-700">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+                <?php endif; ?>
 
-                if ($page > 1): ?>
-                    <li><a href="?<?= $base_url ?>&page=<?= $page - 1 ?>" style="padding: 5px 10px; border: 1px solid #ddd; text-decoration: none;">&laquo;</a></li>
-                <?php endif;
+                <?php for ($i = 1; $i <= $total_pages; $i++): ?>
+                <li>
+                    <a href="?<?= $base_url ?>&page=<?= $i ?>" class="flex items-center justify-center px-3 h-8 leading-tight border border-gray-300 <?= $i == $page ? 'text-brand-600 border-brand-300 bg-brand-50 hover:bg-brand-100 hover:text-brand-700' : 'text-gray-500 bg-white hover:bg-gray-100 hover:text-gray-700' ?>">
+                        <?= $i ?>
+                    </a>
+                </li>
+                <?php endfor; ?>
 
-                for ($i = 1; $i <= $total_pages; $i++): ?>
-                    <li class="<?= ($i == $page) ? 'active' : '' ?>">
-                        <a href="?<?= $base_url ?>&page=<?= $i ?>" style="padding: 5px 10px; border: 1px solid #ddd; text-decoration: none; <?= ($i == $page) ? 'background-color: #2c3e50; color: white;' : '' ?>"><?= $i ?></a>
-                    </li>
-                <?php endfor;
-
-                if ($page < $total_pages): ?>
-                    <li><a href="?<?= $base_url ?>&page=<?= $page + 1 ?>" style="padding: 5px 10px; border: 1px solid #ddd; text-decoration: none;">&raquo;</a></li>
-                <?php endif;
-            }
-            ?>
-        </ul>
-    </nav>
+                <?php if ($page < $total_pages): ?>
+                <li>
+                    <a href="?<?= $base_url ?>&page=<?= $page + 1 ?>" class="flex items-center justify-center px-3 h-8 leading-tight text-gray-500 bg-white border border-gray-300 rounded-r-lg hover:bg-gray-100 hover:text-gray-700">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                <?php endif; ?>
+            </ul>
+        </nav>
+        <?php endif; ?>
+    </div>
 </div>
+<?php endif; ?>
+
+<!-- CONTENIDO: RUTAS -->
+<?php if ($current_tab == 'rutas'): ?>
+<div class="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+    <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+        <h2 class="text-lg font-bold text-gray-800">Historial de Hojas de Ruta</h2>
+    </div>
+
+    <?php if (empty($rutas)): ?>
+        <div class="p-12 text-center">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                <i class="fas fa-route text-gray-400 text-2xl"></i>
+            </div>
+            <h3 class="text-gray-500 font-medium">No hay hojas de ruta generadas</h3>
+            <p class="text-gray-400 text-sm mt-1">Selecciona pedidos y usa el botón 🗺️ para crear una.</p>
+        </div>
+    <?php else: ?>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left text-gray-500">
+                <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3">ID</th>
+                        <th class="px-6 py-3">Nombre</th>
+                        <th class="px-6 py-3">Fecha</th>
+                        <th class="px-6 py-3">Estado</th>
+                        <th class="px-6 py-3 text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                <?php foreach ($rutas as $ruta): ?>
+                    <tr class="bg-white hover:bg-gray-50">
+                        <td class="px-6 py-4 font-medium">#<?= $ruta['id'] ?></td>
+                        <td class="px-6 py-4 text-gray-900 font-semibold"><?= htmlspecialchars($ruta['nombre']) ?></td>
+                        <td class="px-6 py-4"><?= date('d/m/Y H:i', strtotime($ruta['fecha_creacion'])) ?></td>
+                        <td class="px-6 py-4">
+                            <?php 
+                                $estado = $ruta['estado'] ?? 'pendiente';
+                                $colorClass = ($estado == 'completada') ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
+                            ?>
+                            <span class="<?= $colorClass ?> text-xs font-medium px-2.5 py-0.5 rounded uppercase">
+                                <?= ucfirst($estado) ?>
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <a href="ruta/hoja_de_ruta.php?ruta_id=<?= $ruta['id'] ?>" target="_blank" class="text-brand-600 hover:text-brand-800 font-medium mr-3">
+                                <i class="fas fa-external-link-alt mr-1"></i> Ver
+                            </a>
+                            <a href="eliminar_ruta.php?id=<?= $ruta['id'] ?>" onclick="return confirm('¿Eliminar esta ruta?')" class="text-red-500 hover:text-red-700">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
 
 
-<!-- Scripts comentados de PDF -->
-<!-- <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script> -->
-<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script> -->
+<!-- CONTENIDO: EXPORTACIONES -->
+<?php if ($current_tab == 'exportaciones'): ?>
+<div class="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+    <div class="p-6 border-b border-gray-100">
+        <h2 class="text-lg font-bold text-gray-800">Archivos Exportados</h2>
+    </div>
+    
+    <?php if (empty($export_batches)): ?>
+        <div class="p-12 text-center">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                <i class="fas fa-file-archive text-gray-400 text-2xl"></i>
+            </div>
+            <p class="text-gray-500">No hay exportaciones guardadas.</p>
+        </div>
+    <?php else: ?>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left text-gray-500">
+                <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3">Fecha Exportación</th>
+                        <th class="px-6 py-3 text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                <?php foreach ($export_batches as $batch): ?>
+                    <tr class="bg-white hover:bg-gray-50">
+                        <td class="px-6 py-4 font-medium">
+                            <?= date('d/m/Y H:i:s', strtotime($batch['export_date'])) ?>
+                        </td>
+                        <td class="px-6 py-4 text-right flex justify-end gap-3">
+                            <a href="preparar_pdf.php?batch_id=<?= $batch['id'] ?>" target="_blank" class="text-gray-600 hover:text-brand-600" title="Editar">
+                                <i class="fas fa-pen"></i>
+                            </a>
+                            <button class="preview-btn text-brand-500 hover:text-brand-700" title="Vista Previa" data-layout='<?= htmlspecialchars($batch['layout_state'] ?? 'null') ?>'>
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <a href="eliminar_exportacion.php?id=<?= $batch['id'] ?>" onclick="return confirm('¿Eliminar permanentemente?')" class="text-red-500 hover:text-red-700" title="Eliminar">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
+
+<!-- SIDEBAR FILTROS (DRAWER) -->
+<div id="sidebarWidget" class="fixed inset-y-0 right-0 w-80 bg-white shadow-2xl transform translate-x-full transition-transform duration-300 z-50 flex flex-col">
+    <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+        <h3 class="font-bold text-gray-800">Filtros y Búsqueda</h3>
+        <button onclick="cerrarSidebar()" class="text-gray-500 hover:text-gray-700 bg-white border border-gray-200 rounded-full w-8 h-8 flex items-center justify-center">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    
+    <div class="p-6 flex-1 overflow-y-auto">
+        <form method="GET" class="space-y-5">
+            <!-- Mantener tabs -->
+            <?php if(isset($_GET['tab'])): ?>
+                <input type="hidden" name="tab" value="<?= htmlspecialchars($_GET['tab']) ?>">
+            <?php endif; ?>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Estado del Pedido</label>
+                <select name="estado" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-brand-500 focus:border-brand-500 text-sm">
+                    <option value="todos" <?= $filtro === 'todos' ? 'selected' : '' ?>>Todos</option>
+                    <?php foreach ($custom_statuses as $status): ?>
+                        <option value="<?= htmlspecialchars($status['status_name']) ?>" <?= $filtro === $status['status_name'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($status['status_name']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Buscar (Nombre, Texto)</label>
+                <input type="text" name="buscar" value="<?= htmlspecialchars($busqueda) ?>" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-brand-500 focus:border-brand-500 text-sm" placeholder="Ej: Juan, Calle Falsa...">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Creación</label>
+                <input type="date" name="fecha" value="<?= htmlspecialchars($fecha) ?>" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-brand-500 focus:border-brand-500 text-sm">
+            </div>
+
+            <div class="pt-4 flex gap-3">
+                <button type="submit" class="flex-1 bg-brand-600 hover:bg-brand-700 text-white py-2 px-4 rounded-lg text-sm font-medium shadow-sm transition-colors">
+                    Aplicar Filtros
+                </button>
+                <a href="pedidos.php" class="flex-1 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 py-2 px-4 rounded-lg text-sm font-medium text-center transition-colors">
+                    Limpiar
+                </a>
+            </div>
+        </form>
+
+        <hr class="my-6 border-gray-100">
+        
+        <div class="text-center">
+            <p class="text-xs text-gray-400 uppercase tracking-wider mb-3">Acciones Rápidas</p>
+            <a href="pedidos.php?<?= http_build_query(array_merge($_GET, ['exportar' => 'csv'])) ?>" class="block w-full bg-green-50 text-green-700 border border-green-200 py-2 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors">
+                <i class="fas fa-file-csv mr-2"></i> Descargar CSV
+            </a>
+        </div>
+    </div>
+</div>
+<!-- Overlay para cerrar sidebar -->
+<div id="sidebarOverlay" onclick="cerrarSidebar()" class="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 hidden transition-opacity opacity-0"></div>
+
+
+<!-- Modal Vista Previa (Exportaciones) -->
+<div id="previewModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-xl overflow-hidden max-w-sm w-full relative">
+        <div class="p-3 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <h3 class="text-sm font-bold text-gray-700">Vista Previa Layout</h3>
+            <button id="closeModal" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+        </div>
+        <div class="p-4 bg-gray-200 flex justify-center">
+            <div id="previewSheet" class="bg-white shadow-lg relative border border-gray-300" style="width:210px; height:297px;">
+                <!-- JS inyectará items aquí -->
+            </div>
+        </div>
+    </div>
+</div>
 
 <script src="../assets/js/plantilla-renderer.js"></script>
 <script>
-// Funciones para la sidebar
-function abrirSidebar() {
-    document.getElementById('sidebarWidget').classList.add('active');
-}
-function cerrarSidebar() {
-    document.getElementById('sidebarWidget').classList.remove('active');
-}
+    // --- Lógica Sidebar Filtros ---
+    const sidebarWidget = document.getElementById('sidebarWidget');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
 
-document.addEventListener('DOMContentLoaded', () => {
-    // 1. Renderizar todas las previsualizaciones de plantillas
-    document.querySelectorAll('.plantilla-preview-wrapper').forEach(wrapper => {
-        const templateDataAttr = wrapper.getAttribute('data-template-data');
-        if (templateDataAttr) {
-            try {
-                const templateData = JSON.parse(templateDataAttr);
-                const previewContainer = wrapper.querySelector('.plantilla-preview-container');
-                if (previewContainer) {
-                    window.renderizarPlantilla(previewContainer, templateData, 'white');
-                }
-            } catch (e) {
-                console.error('Error al renderizar la vista previa en pedidos.php:', e);
-            }
-        }
-    });
-
-    // 2. Lógica para el botón de exportar a PDF
-    const exportButton = document.getElementById('exportarPDF');
-    if (exportButton) {
-        exportButton.addEventListener('click', () => {
-            const seleccionados = document.querySelectorAll('.select-preview:checked');
-            if (seleccionados.length === 0) {
-                alert('Por favor, selecciona al menos un pedido para exportar.');
-                return;
-            }
-
-            const ids = Array.from(seleccionados).map(cb => cb.value);
-            const url = `preparar_pdf.php?pedidos=${ids.join(',')}`;
-            
-            window.open(url, '_blank');
-        });
+    function abrirSidebar() {
+        sidebarWidget.classList.remove('translate-x-full');
+        sidebarOverlay.classList.remove('hidden');
+        setTimeout(() => sidebarOverlay.classList.remove('opacity-0'), 10);
     }
 
-    // Lógica para el nuevo botón de Crear Ruta
-    const createRouteButton = document.getElementById('crearRuta');
-    if (createRouteButton) {
-        createRouteButton.addEventListener('click', () => {
-            const seleccionados = document.querySelectorAll('.select-preview:checked');
-            if (seleccionados.length === 0) {
-                alert('Por favor, selecciona al menos un pedido para crear la ruta.');
-                return;
-            }
-            const ids = Array.from(seleccionados).map(cb => cb.value);
-            const url = `preparar_ruta.php?ids=${ids.join(',')}`;
-            window.location.href = url; // Redirigir a la página que procesará la ruta
-        });
+    function cerrarSidebar() {
+        sidebarWidget.classList.add('translate-x-full');
+        sidebarOverlay.classList.add('opacity-0');
+        setTimeout(() => sidebarOverlay.classList.add('hidden'), 300);
     }
 
-    // 3. Add confirmation to delete links
-    const deleteLinks = document.querySelectorAll('.delete-link');
-    deleteLinks.forEach(link => {
-        link.addEventListener('click', function(event) {
-            event.preventDefault();
-            const url = this.href;
-            if (confirm('¿Estás seguro de que deseas eliminar este pedido?')) {
-                window.location.href = url;
-            }
-        });
-    });
-
-    // 4. Lógica para el botón de eliminar seleccionados
-    const deleteSelectedButton = document.getElementById('eliminarSeleccionados');
-    if (deleteSelectedButton) {
-        deleteSelectedButton.addEventListener('click', () => {
-            const seleccionados = document.querySelectorAll('.select-preview:checked');
-            if (seleccionados.length === 0) {
-                alert('Por favor, selecciona al menos un pedido para eliminar.');
-                return;
-            }
-
-            if (confirm(`¿Estás seguro de que deseas eliminar ${seleccionados.length} pedidos seleccionados?`)) {
-                const ids = Array.from(seleccionados).map(cb => cb.value);
-                const url = `eliminar_pedidos_seleccionados.php?ids=${ids.join(',')}`;
-                window.location.href = url;
-            }
-        });
-    }
-});
-</script>
-
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const modal = document.getElementById('previewModal');
-    const closeModalBtn = document.getElementById('closeModal');
-    const previewSheet = document.getElementById('previewSheet');
-    const previewButtons = document.querySelectorAll('.preview-btn');
-
-    // --- A4 Dimensions for scaling ---
-    const A4_WIDTH_MM = 210;
-    const A4_HEIGHT_MM = 297;
-    const SHEET_WIDTH_PX = 210;
-    const SHEET_HEIGHT_PX = 297;
-    const MM_TO_PX_RATIO = SHEET_WIDTH_PX / A4_WIDTH_MM;
-
-    previewButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const layoutData = btn.dataset.layout;
-            if (!layoutData || layoutData === 'null') {
-                alert('No hay un diseño guardado para esta exportación.');
-                return;
-            }
-
-            // Clear previous preview
-            previewSheet.innerHTML = '';
-
-            try {
-                const layout = JSON.parse(layoutData);
-                if (!Array.isArray(layout)) return;
-
-                layout.forEach(item => {
-                    const div = document.createElement('div');
-                    div.style.position = 'absolute';
-                    
-                    // Scale position and size from A4 (mm) to preview sheet (px)
-                    const x = item.x * MM_TO_PX_RATIO;
-                    const y = item.y * MM_TO_PX_RATIO;
-                    
-                    let width, height;
-
-                    if (item.is_rect) {
-                        width = (item.width || 0) * MM_TO_PX_RATIO;
-                        height = (item.height || 0) * MM_TO_PX_RATIO;
-                        div.style.backgroundColor = 'rgba(0,0,0,0.7)';
+    document.addEventListener('DOMContentLoaded', () => {
+        // 1. Renderizar Plantillas (Script Legacy mantenido)
+        document.querySelectorAll('.plantilla-preview-wrapper').forEach(wrapper => {
+            const templateDataAttr = wrapper.getAttribute('data-template-data');
+            if (templateDataAttr) {
+                try {
+                    const templateData = JSON.parse(templateDataAttr);
+                    const previewContainer = wrapper.querySelector('.plantilla-preview-container');
+                    if (previewContainer) {
+                        // Creamos el contenedor interno si no existe (el script original lo espera)
+                        if (!previewContainer.querySelector('.preview')) {
+                            const innerDiv = document.createElement('div');
+                            innerDiv.className = 'plantilla-preview-container';
+                            // wrapper.appendChild(innerDiv); 
+                            // Nota: En el HTML ya incluí la estructura esperada por CSS. 
+                            // Solo necesitamos llamar al renderer.
+                            window.renderizarPlantilla(wrapper, templateData, 'white');
+                        } else {
+                            window.renderizarPlantilla(previewContainer, templateData, 'white');
+                        }
                     } else {
-                        // Default stamp size is 38x14mm
-                        const baseWidth = 38 * MM_TO_PX_RATIO;
-                        const baseHeight = 14 * MM_TO_PX_RATIO;
-                        const scale = item.scale || 1;
-                        width = baseWidth * scale;
-                        height = baseHeight * scale;
-                        div.style.backgroundColor = 'rgba(0, 123, 255, 0.7)';
+                         // Fallback si la estructura HTML cambió
+                         const innerDiv = document.createElement('div');
+                         innerDiv.className = 'plantilla-preview-container';
+                         wrapper.appendChild(innerDiv);
+                         window.renderizarPlantilla(innerDiv, templateData, 'white');
                     }
-                    
-                    div.style.left = `${x}px`;
-                    div.style.top = `${y}px`;
-                    div.style.width = `${width}px`;
-                    div.style.height = `${height}px`;
-                    div.style.transform = `rotate(${item.angle || 0}deg)`;
-                    div.style.border = '1px solid rgba(255,255,255,0.5)';
-                    
-                    previewSheet.appendChild(div);
-                });
-
-                modal.style.display = 'flex';
-            } catch (e) {
-                console.error('Error parsing layout data:', e);
-                alert('El formato del diseño guardado es inválido.');
+                } catch (e) { console.error('Error render:', e); }
             }
         });
-    });
 
-    // --- Close Modal Logic ---
-    const closeModal = () => {
-        modal.style.display = 'none';
-    };
+        // 2. Acciones en Lote
+        const getSelectedIds = () => {
+            return Array.from(document.querySelectorAll('.select-preview:checked')).map(cb => cb.value);
+        };
 
-    closeModalBtn.addEventListener('click', closeModal);
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            closeModal();
-        }
+        const handleBatchAction = (btnId, urlPrefix, confirmMsg) => {
+            const btn = document.getElementById(btnId);
+            if(!btn) return;
+            
+            btn.addEventListener('click', () => {
+                const ids = getSelectedIds();
+                if (ids.length === 0) {
+                    alert('Selecciona al menos un pedido.');
+                    return;
+                }
+                if (confirmMsg && !confirm(confirmMsg)) return;
+
+                const url = `${urlPrefix}${ids.join(',')}`;
+                if (btnId === 'eliminarSeleccionados') {
+                    window.location.href = url;
+                } else {
+                    window.open(url, '_blank');
+                }
+            });
+        };
+
+        handleBatchAction('crearRuta', 'preparar_ruta.php?ids=');
+        handleBatchAction('exportarPDF', 'preparar_pdf.php?pedidos=');
+        handleBatchAction('eliminarSeleccionados', 'eliminar_pedidos_seleccionados.php?ids=', '¿Eliminar pedidos seleccionados permanentemente?');
+
+        // 3. Delete Links confirmation
+        document.querySelectorAll('.delete-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                if(!confirm('¿Eliminar este pedido?')) e.preventDefault();
+            });
+        });
+
+        // 4. Modal Preview Exportaciones
+        const modal = document.getElementById('previewModal');
+        const previewSheet = document.getElementById('previewSheet');
+        const MM_TO_PX = 210 / 210; // 1:1 scale for simplicity in this small view
+
+        document.querySelectorAll('.preview-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const layout = JSON.parse(btn.dataset.layout || '[]');
+                previewSheet.innerHTML = '';
+                
+                layout.forEach(item => {
+                    const el = document.createElement('div');
+                    el.style.position = 'absolute';
+                    el.style.left = item.x + 'px';
+                    el.style.top = item.y + 'px';
+                    
+                    if(item.is_rect) {
+                        el.style.width = item.width + 'px';
+                        el.style.height = item.height + 'px';
+                        el.style.backgroundColor = 'rgba(0,0,0,0.5)';
+                    } else {
+                        // Stamp approx size
+                        const w = 38 * (item.scale || 1);
+                        const h = 14 * (item.scale || 1);
+                        el.style.width = w + 'px';
+                        el.style.height = h + 'px';
+                        el.style.backgroundColor = 'rgba(59, 130, 246, 0.5)';
+                        el.style.transform = `rotate(${item.angle || 0}deg)`;
+                    }
+                    el.style.border = '1px solid rgba(255,255,255,0.8)';
+                    previewSheet.appendChild(el);
+                });
+                modal.classList.remove('hidden');
+            });
+        });
+
+        document.getElementById('closeModal').addEventListener('click', () => modal.classList.add('hidden'));
+        modal.addEventListener('click', (e) => {
+            if(e.target === modal) modal.classList.add('hidden');
+        });
     });
-});
 </script>
 
-<?php endif; ?>
-
-</body>
-</html>
+<?php require_once 'includes/footer.php'; ?>
